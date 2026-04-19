@@ -14,7 +14,7 @@ export const SHEETS_CONFIG = {
 
   // The name of the sheet tab with form responses
   // (usually "Form Responses 1" or "Respuestas de formulario 1")
-  SHEET_NAME: 'Hypertrophy Training Progress Log (respuestas)',
+  SHEET_NAME: 'Respuestas de formulario 1',
 };
 
 // ─── PROGRAM CONFIGURATION ──────────────────────────────────────────────────
