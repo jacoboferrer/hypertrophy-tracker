@@ -10,7 +10,7 @@ export const SHEETS_CONFIG = {
   SHEET_ID: '13lTa3h3qSkeaDmbNqZxKxJCVniC7FeI0tgBJLIwVSE0',
 
   // Your Google Cloud API key (with Sheets API enabled):
-  API_KEY: 'YOUR_API_KEY_HERE',
+  API_KEY: 'AIzaSyATpWX4rXVrjmJp4egVoyDDH83SRlNtYbA',
 
   // The name of the sheet tab with form responses
   SHEET_NAME: 'Respuestas de formulario 1',
