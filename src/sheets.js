@@ -45,6 +45,20 @@ const ROUTINE_TO_DAY = {
   'Push day': 'A', 'Pull day': 'B', 'Upper body': 'C',
 };
 
+function parseTimestamp(ts) {
+  if (!ts) return null;
+  // Try native Date first (works for ISO formats and some locales)
+  let d = new Date(ts);
+  if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  // Handle D/MM/YYYY H:MM:SS or DD/MM/YYYY H:MM:SS (Google Sheets Spanish locale)
+  const match = ts.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (match) {
+    const [, day, month, year] = match;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  return null;
+}
+
 function parseRow(row) {
   if (!row || row.length < 12) return null;
 
@@ -58,22 +72,25 @@ function parseRow(row) {
   const setNum = parseInt(setRaw);
   if (isNaN(setNum) || setNum < 1) return null;
 
-  // Resolve exercise name from conditional columns (old: 2-8, new Full Body: 24-26)
-  const exercise = (row[24] || row[25] || row[26] || row[2] || row[3] || row[4] || row[5] || row[6] || row[7] || row[8] || '').trim();
+  // Resolve exercise name — check ALL possible columns
+  // New Full Body columns (24, 25, 26) take priority, then legacy columns (2-8)
+  const exerciseCols = [24, 25, 26, 2, 3, 4, 5, 6, 7, 8];
+  let exercise = '';
+  for (const col of exerciseCols) {
+    if (row[col] && row[col].toString().trim()) {
+      exercise = row[col].toString().trim();
+      break;
+    }
+  }
   if (!exercise) return null;
 
   const reps = parseInt(row[10]);
   const weight = parseFloat(row[11]);
   if (isNaN(reps) || isNaN(weight)) return null;
 
-  // Parse date from timestamp
-  let date;
-  try {
-    const d = new Date(timestamp);
-    date = d.toISOString().slice(0, 10);
-  } catch {
-    return null;
-  }
+  // Parse date
+  const date = parseTimestamp(timestamp);
+  if (!date) return null;
 
   // Map routine to day tag
   const day = ROUTINE_TO_DAY[routine] || ROUTINE_TO_DAY[routine.toLowerCase()] || 'A';

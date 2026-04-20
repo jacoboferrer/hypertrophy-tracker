@@ -7,14 +7,13 @@
 export const SHEETS_CONFIG = {
   // The ID from your Google Sheet URL:
   // https://docs.google.com/spreadsheets/d/THIS_PART/edit
-  SHEET_ID: 'YOUR_SHEET_ID_HERE',
+  SHEET_ID: '13lTa3h3qSkeaDmbNqZxKxJCVniC7FeI0tgBJLIwVSE0',
 
   // Your Google Cloud API key (with Sheets API enabled):
   API_KEY: 'YOUR_API_KEY_HERE',
 
   // The name of the sheet tab with form responses
-  // (usually "Form Responses 1" or "Respuestas de formulario 1")
-  SHEET_NAME: 'Form Responses 1',
+  SHEET_NAME: 'Respuestas de formulario 1',
 };
 
 // ─── PROGRAM CONFIGURATION ──────────────────────────────────────────────────
