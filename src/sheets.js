@@ -37,6 +37,10 @@ const ROUTINE_TO_DAY = {
   'Day A': 'A', 'Día A': 'A', 'day a': 'A',
   'Day B': 'B', 'Día B': 'B', 'day b': 'B',
   'Day C': 'C', 'Día C': 'C', 'day c': 'C',
+  // Full Body routine names from updated form
+  'Full Body - A': 'A', 'Full body - A': 'A', 'full body - a': 'A',
+  'Full Body - B': 'B', 'Full body - B': 'B', 'full body - b': 'B',
+  'Full Body - C': 'C', 'Full body - C': 'C', 'full body - c': 'C',
   // Legacy mappings from old form
   'Push day': 'A', 'Pull day': 'B', 'Upper body': 'C',
 };
@@ -54,8 +58,8 @@ function parseRow(row) {
   const setNum = parseInt(setRaw);
   if (isNaN(setNum) || setNum < 1) return null;
 
-  // Resolve exercise name from conditional columns
-  const exercise = (row[2] || row[3] || row[4] || row[5] || row[6] || row[7] || row[8] || '').trim();
+  // Resolve exercise name from conditional columns (old: 2-8, new Full Body: 24-26)
+  const exercise = (row[24] || row[25] || row[26] || row[2] || row[3] || row[4] || row[5] || row[6] || row[7] || row[8] || '').trim();
   if (!exercise) return null;
 
   const reps = parseInt(row[10]);
@@ -99,7 +103,7 @@ export async function fetchFromGoogleSheets() {
     throw new Error('API_KEY not configured. Edit src/config.js');
   }
 
-  const range = `${SHEET_NAME}!A2:Q1000`; // Skip header row, fetch up to 1000 rows
+  const range = `${SHEET_NAME}!A2:AA1000`; // Skip header row, fetch up to 1000 rows (columns A-AA)
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
 
   const response = await fetch(url);

@@ -7,14 +7,14 @@
 export const SHEETS_CONFIG = {
   // The ID from your Google Sheet URL:
   // https://docs.google.com/spreadsheets/d/THIS_PART/edit
-  SHEET_ID: '13lTa3h3qSkeaDmbNqZxKxJCVniC7FeI0tgBJLIwVSE0',
+  SHEET_ID: 'YOUR_SHEET_ID_HERE',
 
   // Your Google Cloud API key (with Sheets API enabled):
-  API_KEY: 'AIzaSyATpWX4rXVrjmJp4egVoyDDH83SRlNtYbA',
+  API_KEY: 'YOUR_API_KEY_HERE',
 
   // The name of the sheet tab with form responses
   // (usually "Form Responses 1" or "Respuestas de formulario 1")
-  SHEET_NAME: 'Respuestas de formulario 1',
+  SHEET_NAME: 'Form Responses 1',
 };
 
 // ─── PROGRAM CONFIGURATION ──────────────────────────────────────────────────
@@ -28,7 +28,7 @@ export const PROGRAM = {
     exercises: [
       { name: "Barbell Back Squat", type: "Compound", method: "Linear", sets: 3, repRange: "6-10" },
       { name: "Barbell Flat Bench Press", type: "Compound", method: "Linear", sets: 3, repRange: "6-10" },
-      { name: "Barbell Row", type: "Compound", method: "Linear", sets: 3, repRange: "8-12" },
+      { name: "Barbell Rows", type: "Compound", method: "Linear", sets: 3, repRange: "8-12" },
       { name: "Lateral Raises", type: "Isolation", method: "Double", sets: 2, repRange: "10-15" },
       { name: "Tricep Pushdown", type: "Isolation", method: "Linear", sets: 2, repRange: "10-15" },
     ],
