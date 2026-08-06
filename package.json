@@ -7,6 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "verify": "node scripts/verify.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "test": "npm run verify && npm run smoke",
+    "test:refresh": "node scripts/verify.mjs --refresh && node scripts/smoke.mjs",
     "deploy": "vite build && gh-pages -d dist"
   },
   "dependencies": {

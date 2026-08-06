@@ -1,152 +1,107 @@
 # Hypertrophy Tracker
 
-Personal hypertrophy training dashboard with Google Sheets sync.
+A session-counted mesocycle tracker for the 2026–27 course. Pulls logged sets
+from a Google Form → Sheet, prescribes what to do today, and keeps the rotation
+honest.
 
-## Quick Start
-
-### 1. Clone and install
+## Setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/hypertrophy-tracker.git
-cd hypertrophy-tracker
 npm install
-```
-
-### 2. Configure Google Sheets sync
-
-Edit `src/config.js` with your Sheet ID and API key (see setup guide below).
-
-### 3. Run locally
-
-```bash
+cp .env.example .env.local     # fill in your Sheet ID and API key
 npm run dev
 ```
 
-### 4. Deploy to GitHub Pages
+`.env.local` is git-ignored. Nothing secret belongs in `src/`.
 
-Push to GitHub → the included GitHub Actions workflow builds and deploys automatically.
+| Variable | What it is |
+| --- | --- |
+| `VITE_SHEETS_ID` | The ID in your Sheet URL: `docs.google.com/spreadsheets/d/**THIS**/edit` |
+| `VITE_SHEETS_API_KEY` | Google Cloud API key with the Sheets API enabled |
+| `VITE_SHEETS_TAB` | Tab name holding form responses |
 
----
+The Sheet must be shared as **Anyone with the link → Viewer**.
 
-## Google Sheets Setup Guide
-
-### Step 1: Make your Sheet publicly readable
-
-1. Open the Google Sheet that receives your form responses
-2. Click **Share** (top-right)
-3. Under "General access", change to **"Anyone with the link"** → **Viewer**
-4. Copy the Sheet ID from the URL:
-   ```
-   https://docs.google.com/spreadsheets/d/THIS_PART_IS_YOUR_SHEET_ID/edit
-   ```
-5. Paste it in `src/config.js` as the `SHEET_ID` value
-
-### Step 2: Get a Google Sheets API key
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project (or select existing)
-3. Go to **APIs & Services** → **Library**
-4. Search for **"Google Sheets API"** → click **Enable**
-5. Go to **APIs & Services** → **Credentials**
-6. Click **Create Credentials** → **API Key**
-7. (Recommended) Click **Edit API key** → under "API restrictions", select **Google Sheets API** only
-8. Copy the key and paste it in `src/config.js` as the `API_KEY` value
-
-### Step 3: Set the sheet tab name
-
-In `src/config.js`, set `SHEET_NAME` to match your form responses tab name.
-Common values:
-- `"Form Responses 1"` (English)
-- `"Respuestas de formulario 1"` (Spanish)
-
-### Step 4: Test locally
+> **A key in a client bundle is readable by anyone who loads the page.** Secrecy
+> is not the control — restriction is. In the Google Cloud console, restrict the
+> key to the Sheets API and to your GitHub Pages referrer.
 
 ```bash
-npm run dev
+npm test             # logic checks against the log, then renders every view
+npm run test:refresh # same, but re-fetch the sheet first
+npm run build
+npm run deploy       # GitHub Pages
 ```
 
-Open the app. The sync banner at the top should show "● Connected to Google Sheets".
+### Why the tests don't need the network
 
----
+A referrer-restricted key rejects Node — it sends no `Referer` header, and
+Google answers `Requests from referer <empty> are blocked`. Two things handle
+that. The scripts declare `TEST_REFERER` (an origin allowed on the key) when
+they fetch, and the first successful fetch is cached to
+`scripts/.fixture.json`, which is git-ignored. Every later run reads the cache
+and touches no network at all, so the suite works on a plane and survives key
+rotation. Use `npm run test:refresh` after logging new sessions.
 
-## GitHub Pages Deployment
+If the fetch fails and a cache exists, the scripts warn and carry on. If
+neither works, they stop with an explanation rather than testing nothing.
 
-### Option A: Automatic (GitHub Actions) — Recommended
+## How it works
 
-1. Create a repo on GitHub named `hypertrophy-tracker`
-2. Push your code:
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   git remote add origin https://github.com/YOUR_USERNAME/hypertrophy-tracker.git
-   git push -u origin main
-   ```
-3. In your repo → **Settings** → **Pages**:
-   - Source: **GitHub Actions**
-4. The workflow runs automatically on push. Your site will be at:
-   ```
-   https://YOUR_USERNAME.github.io/hypertrophy-tracker/
-   ```
+**Blocks are counted in sessions, not weeks.** A mesocycle is thirteen sessions
+— four A–B–C rotations plus a deload. Week-based blocks break the first time
+life takes a fortnight, and this log lost a fortnight in February, a month in
+April and two months to summer. A session-counted block can only be delayed.
 
-### Option B: Manual (`gh-pages` branch)
+Position in the plan is derived entirely from logged sessions on or after
+`PROGRAM_START`, so there is no state to keep in sync. See `src/mesocycles.js`.
 
-```bash
-npm run deploy
-```
+**The rotation is strictly ordered.** The Today screen reads the last logged
+letter and shows the next one; it never offers a choice. In the best six weeks
+of the previous log, Day A ran seven times and Day C once.
 
-Then in Settings → Pages, set source to `gh-pages` branch.
+**Progression is double progression on every working set.** Load rises only
+when all sets reach the top of the rep range, and it comes from the top set,
+rounded to a real increment — 2.5 kg on a barbell, 2 kg on a dumbbell pair.
+Rotation 1 of each block opens one increment below the last block's finish.
 
-### Important: Update the base path
+**Sets logged on the phone land in `localStorage` first** and merge with the
+Sheets pull on read, so a dead signal in the gym costs nothing. A service worker
+caches the app shell for the same reason.
 
-In `vite.config.js`, the `base` value must match your repo name:
-
-```js
-base: '/hypertrophy-tracker/',  // ← must match your GitHub repo name
-```
-
-If your repo has a different name, update this value.
-
----
-
-## Google Form Column Mapping
-
-The app expects your form to have these columns (in order):
-
-| Col | Field | Description |
-|-----|-------|-------------|
-| 0 | Marca temporal | Timestamp (auto) |
-| 1 | Routine | "Day A" / "Day B" / "Day C" |
-| 2 | Day A exercise | Conditional: shown when Routine = Day A |
-| 3 | Day B exercise | Conditional: shown when Routine = Day B |
-| 4 | Day C exercise | Conditional: shown when Routine = Day C |
-| 5-8 | Extra selections | Optional fallback exercise columns |
-| 9 | Working Set | 1, 2, 3, 4 or "Warmup" |
-| 10 | Repetitions | Number |
-| 11 | Weight (kg) | Number |
-| 12 | Comment | Optional text |
-| 13 | RPE | Optional 1-10 |
-| 14 | RIR | Optional 0-5 |
-| 15 | Technical Quality | Optional |
-| 16 | Rest Time | Optional |
-
-Legacy routine names ("Push day", "Pull day", "Upper body") are also supported.
-
----
-
-## Project Structure
+## Layout
 
 ```
-hypertrophy-tracker/
-├── index.html              # Entry point
-├── vite.config.js          # Vite config with GitHub Pages base path
-├── package.json
-├── src/
-│   ├── main.jsx            # React mount
-│   ├── App.jsx             # Main app (5 views)
-│   ├── config.js           # ← EDIT THIS: Sheet ID, API key, program config
-│   └── sheets.js           # Google Sheets fetch + column parser
-└── .github/
-    └── workflows/
-        └── deploy.yml      # Auto-deploy on push to main
+src/
+  config.js        Sheets env, the A/B/C program, body params
+  exercises.js     alias map, muscle attribution, loadable increments
+  mesocycles.js    block definitions and the session-counted state machine
+  progression.js   what to lift today, given the block position
+  analysis.js      sessions, volume, weekly load, trends
+  store.js         local-first log: sets, grappling, bodyweight
+  sheets.js        Google Sheets pull and row parsing
+  ui.jsx           charts and shared primitives
+  views/           Today · Plan · Log · Progress · Body
+scripts/
+  verify.mjs       logic checks against the real log
+  smoke.mjs        server-renders every view, real data and empty
 ```
+
+`exercises.js` is the file to edit when the form gains a new movement — add the
+spelling to `ALIASES` and the attribution to `EXERCISE_META`, or its history
+will fragment and its volume will go uncounted.
+
+## Form columns
+
+The parser reads the response sheet positionally, so column order matters:
+
+| Col | Field |
+| --- | --- |
+| 0 | Timestamp (`D/MM/YYYY` — parsed before the native `Date`, which reads `1/06` as 6 January) |
+| 1 | Routine → day letter |
+| 2–8 | Legacy exercise columns |
+| 9 | Working set number, or `Warmup` (skipped) |
+| 10–11 | Reps, weight (kg) |
+| 13–14 | RPE, RIR |
+| 19 | Body weight |
+| 24–26 | Full Body A/B/C exercise columns (take priority) |

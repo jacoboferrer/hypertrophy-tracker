@@ -1,151 +1,146 @@
 // ─── Google Sheets Integration ───────────────────────────────────────────────
-// 
-// HOW TO SET UP:
-// 1. Open your Google Sheet (the one receiving form responses)
-// 2. Click Share → "Anyone with the link" → set to "Viewer"
-// 3. Copy the Sheet ID from the URL:
-//    https://docs.google.com/spreadsheets/d/THIS_PART_IS_THE_ID/edit
-// 4. Get a Google Sheets API key:
-//    - Go to https://console.cloud.google.com/
-//    - Create a project (or use existing)
-//    - Enable "Google Sheets API"
-//    - Go to Credentials → Create Credentials → API Key
-//    - (Optional) Restrict the key to Google Sheets API only
-// 5. Paste both values in config.js
 //
-// Your Google Form column mapping (based on your existing form):
-//   Col 0: Marca temporal        → timestamp
-//   Col 1: Routine               → day (Day A / Day B / Day C)
-//   Col 2: Day A exercises       → exercise name (conditional on routine)
-//   Col 3: Day B exercises       → exercise name (conditional on routine)
-//   Col 4: Day C exercises       → exercise name (conditional on routine)
-//   Col 5-8: Extra selections    → exercise name (fallback)
-//   Col 9: Working Set           → set number (1,2,3,4 or "Warmup")
-//   Col 10: Repetitions          → reps
-//   Col 11: Weight (kg)          → weight
-//   Col 12: Comment              → comment
-//   Col 13: RPE                  → rpe
-//   Col 14: RIR                  → rir
-//   Col 15: Technical Quality    → quality
-//   Col 16: Rest Time            → rest
-// ─────────────────────────────────────────────────────────────────────────────
+// SETUP
+// 1. Share the Sheet: "Anyone with the link" → Viewer.
+// 2. Create a Google Cloud API key with the Sheets API enabled, and RESTRICT it
+//    to the Sheets API and to your GitHub Pages referrer. A key in a client
+//    bundle is readable by anyone who loads the page — restriction, not
+//    secrecy, is what protects it.
+// 3. Copy .env.example to .env.local and fill in the values. Never commit them.
+//
+// Form column mapping:
+//   0  Marca temporal          → date
+//   1  Routine                 → day (Full Body - A/B/C, or legacy names)
+//   2–8  legacy exercise cols  → exercise name
+//   9  Working Set             → set number, or "Warmup" (skipped)
+//   10 Repetitions   11 Weight (kg)   12 Comment
+//   13 RPE           14 RIR           15 Technical Quality   16 Rest Time
+//   17 Sleep quality 18 Energy level  19 Body weight
+//   24–26 Full Body A/B/C cols → exercise name (take priority)
+//
 
 import { SHEETS_CONFIG } from './config.js';
+import { canonical } from './exercises.js';
 
-// Map routine names to day tags
 const ROUTINE_TO_DAY = {
-  'Day A': 'A', 'Día A': 'A', 'day a': 'A',
-  'Day B': 'B', 'Día B': 'B', 'day b': 'B',
-  'Day C': 'C', 'Día C': 'C', 'day c': 'C',
-  // Full Body routine names from updated form
-  'Full Body - A': 'A', 'Full body - A': 'A', 'full body - a': 'A',
-  'Full Body - B': 'B', 'Full body - B': 'B', 'full body - b': 'B',
-  'Full Body - C': 'C', 'Full body - C': 'C', 'full body - c': 'C',
-  // Legacy mappings from old form
-  'Push day': 'A', 'Pull day': 'B', 'Upper body': 'C',
+  'day a': 'A', 'día a': 'A', 'full body - a': 'A', 'full body a': 'A',
+  'day b': 'B', 'día b': 'B', 'full body - b': 'B', 'full body b': 'B',
+  'day c': 'C', 'día c': 'C', 'full body - c': 'C', 'full body c': 'C',
+  // Legacy routine names from the pre-April form
+  'push day': 'A', 'pull day': 'B', 'upper body': 'C',
 };
+
+const EXERCISE_COLUMNS = [24, 25, 26, 2, 3, 4, 5, 6, 7, 8];
 
 function parseTimestamp(ts) {
   if (!ts) return null;
-  // Try native Date first (works for ISO formats and some locales)
-  let d = new Date(ts);
-  if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
-  // Handle D/MM/YYYY H:MM:SS or DD/MM/YYYY H:MM:SS (Google Sheets Spanish locale)
-  const match = ts.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  // Google Sheets Spanish locale: D/MM/YYYY H:MM:SS. Checked before the native
+  // parser, which reads 1/06/2026 as 6 January.
+  const match = String(ts).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (match) {
     const [, day, month, year] = match;
     return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   }
+  const d = new Date(ts);
+  if (!isNaN(d.getTime())) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
   return null;
 }
+
+const num = (v) => {
+  if (v === undefined || v === null || String(v).trim() === '') return null;
+  const n = parseFloat(String(v).replace(',', '.'));
+  return isNaN(n) ? null : n;
+};
 
 function parseRow(row) {
   if (!row || row.length < 12) return null;
 
-  const timestamp = row[0];
-  const routine = (row[1] || '').trim();
-  const setRaw = (row[9] || '').toString().trim();
+  const date = parseTimestamp(row[0]);
+  if (!date) return null;
 
-  // Skip warmups
-  if (setRaw.toLowerCase() === 'warmup' || setRaw.toLowerCase() === 'calentamiento') return null;
+  const setRaw = String(row[9] ?? '').trim();
+  const bodyweight = num(row[19]);
 
-  const setNum = parseInt(setRaw);
-  if (isNaN(setNum) || setNum < 1) return null;
+  // Warm-ups carry no working volume but may still carry a bodyweight reading.
+  const isWarmup = /^(warmup|calentamiento)$/i.test(setRaw);
+  const setNum = parseInt(setRaw, 10);
+  if (isWarmup || isNaN(setNum) || setNum < 1) {
+    return bodyweight ? { kind: 'bodyweight', date, value: bodyweight } : null;
+  }
 
-  // Resolve exercise name — check ALL possible columns
-  // New Full Body columns (24, 25, 26) take priority, then legacy columns (2-8)
-  const exerciseCols = [24, 25, 26, 2, 3, 4, 5, 6, 7, 8];
   let exercise = '';
-  for (const col of exerciseCols) {
-    if (row[col] && row[col].toString().trim()) {
-      exercise = row[col].toString().trim();
-      break;
-    }
+  for (const col of EXERCISE_COLUMNS) {
+    const v = row[col];
+    if (v && String(v).trim()) { exercise = String(v).trim(); break; }
   }
   if (!exercise) return null;
 
-  const reps = parseInt(row[10]);
-  const weight = parseFloat(row[11]);
-  if (isNaN(reps) || isNaN(weight)) return null;
+  const reps = parseInt(row[10], 10);
+  const weight = num(row[11]);
+  if (isNaN(reps) || weight === null) return null;
 
-  // Parse date
-  const date = parseTimestamp(timestamp);
-  if (!date) return null;
-
-  // Map routine to day tag
-  const day = ROUTINE_TO_DAY[routine] || ROUTINE_TO_DAY[routine.toLowerCase()] || 'A';
+  const routine = String(row[1] ?? '').trim().toLowerCase();
 
   return {
+    kind: 'set',
     date,
-    day,
-    exercise,
+    day: ROUTINE_TO_DAY[routine] || 'A',
+    exercise: canonical(exercise),   // collapses the five alias pairs
     set: setNum,
     reps,
     weight,
-    rpe: row[13] ? parseFloat(row[13]) : null,
-    rir: row[14] ? parseFloat(row[14]) : null,
+    rpe: num(row[13]),
+    rir: num(row[14]),
     quality: row[15] || null,
     rest: row[16] || null,
+    sleep: row[17] || null,
+    energy: row[18] || null,
+    bodyweight,
     comment: row[12] || null,
+    source: 'sheets',
   };
+}
+
+/**
+ * Turn raw sheet rows into sets and bodyweight readings.
+ * Exported so the test scripts exercise this parser rather than a copy of it.
+ */
+export function parseRows(values) {
+  const parsed = values.map(parseRow).filter(Boolean);
+
+  const sets = parsed.filter((r) => r.kind === 'set');
+  const bodyweight = [];
+  const seen = new Set();
+  for (const r of parsed) {
+    const value = r.kind === 'bodyweight' ? r.value : r.bodyweight;
+    if (value && !seen.has(r.date)) { seen.add(r.date); bodyweight.push({ date: r.date, value }); }
+  }
+
+  return { sets, bodyweight };
+}
+
+/** The range this app reads. Shared with the fixture cache. */
+export const SHEET_RANGE = (name) => `${name}!A2:AA5000`;
+
+export function sheetsUrl({ SHEET_ID, API_KEY, SHEET_NAME }) {
+  if (!SHEET_ID) throw new Error('VITE_SHEETS_ID is not set — copy .env.example to .env.local');
+  if (!API_KEY) throw new Error('VITE_SHEETS_API_KEY is not set — copy .env.example to .env.local');
+  const range = encodeURIComponent(SHEET_RANGE(SHEET_NAME));
+  return `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}`;
 }
 
 export async function fetchFromGoogleSheets() {
-  const { SHEET_ID, API_KEY, SHEET_NAME } = SHEETS_CONFIG;
-
-  if (!SHEET_ID || SHEET_ID === 'YOUR_SHEET_ID_HERE') {
-    throw new Error('SHEET_ID not configured. Edit src/config.js');
-  }
-  if (!API_KEY || API_KEY === 'YOUR_API_KEY_HERE') {
-    throw new Error('API_KEY not configured. Edit src/config.js');
-  }
-
-  const range = `${SHEET_NAME}!A2:AA1000`; // Skip header row, fetch up to 1000 rows (columns A-AA)
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
-
-  const response = await fetch(url);
+  const response = await fetch(sheetsUrl(SHEETS_CONFIG));
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(
-      `Google Sheets API error ${response.status}: ${err.error?.message || response.statusText}`
-    );
+    throw new Error(`Sheets API ${response.status}: ${err.error?.message || response.statusText}`);
   }
 
-  const json = await response.json();
-  const rows = json.values || [];
+  const { values = [] } = await response.json();
+  const { sets, bodyweight } = parseRows(values);
 
-  const parsed = rows.map(parseRow).filter(Boolean);
-
-  console.log(`[Sheets] Fetched ${rows.length} rows, parsed ${parsed.length} working sets`);
-  return parsed;
-}
-
-export function getLastSyncInfo(data) {
-  if (!data.length) return { lastDate: null, totalSets: 0, dateRange: '' };
-  const dates = data.map(d => d.date).sort();
-  return {
-    lastDate: dates[dates.length - 1],
-    totalSets: data.length,
-    dateRange: `${dates[0]} → ${dates[dates.length - 1]}`,
-  };
+  console.log(`[Sheets] ${values.length} rows → ${sets.length} working sets, ${bodyweight.length} bodyweight readings`);
+  return { sets, bodyweight };
 }
