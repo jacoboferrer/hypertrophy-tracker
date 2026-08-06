@@ -27,7 +27,24 @@ jobs:
           node-version: 20
           cache: 'npm'
       - run: npm ci
+
+      # Vite inlines VITE_* at build time, so these must be present here or the
+      # deployed bundle ships with an empty key and the app cannot sync.
+      # Set them at Settings → Secrets and variables → Actions.
+      - name: Verify build secrets are set
+        env:
+          KEY: ${{ secrets.VITE_SHEETS_API_KEY }}
+          ID: ${{ secrets.VITE_SHEETS_ID }}
+        run: |
+          [ -n "$ID" ]  || { echo "::error::Repository secret VITE_SHEETS_ID is missing"; exit 1; }
+          [ -n "$KEY" ] || { echo "::error::Repository secret VITE_SHEETS_API_KEY is missing"; exit 1; }
+
       - run: npm run build
+        env:
+          VITE_SHEETS_ID: ${{ secrets.VITE_SHEETS_ID }}
+          VITE_SHEETS_API_KEY: ${{ secrets.VITE_SHEETS_API_KEY }}
+          VITE_SHEETS_TAB: "Respuestas de formulario 1"
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
