@@ -11,7 +11,7 @@ import { PROGRAM } from '../config.js';
 import { prescribe, STATUS_STYLE } from '../progression.js';
 import { setBonus } from '../mesocycles.js';
 import { today as todayIso } from '../analysis.js';
-import { addSet, addGrappling } from '../store.js';
+import { addSet, removeSet, addGrappling } from '../store.js';
 import { Pill, Track } from '../ui.jsx';
 
 function BlockHeader({ meso }) {
@@ -60,6 +60,18 @@ function SetLogger({ exercise, prescription, loggedSets, day, onLogged }) {
     onLogged?.(`${exercise.name} — set ${i + 1} logged`);
   };
 
+  // Undo a mis-tap. Only possible for sets logged in the app: rows pulled from
+  // the Sheet carry no id and have to be edited in the form.
+  const undo = (i) => {
+    const done = loggedSets[i];
+    if (!done?.id) return;
+    removeSet(done.id);
+    setDrafts((d) => ({ ...d, [i]: { reps: done.reps, weight: done.weight } }));
+    onLogged?.(`${exercise.name} — set ${i + 1} undone`);
+  };
+
+  const anyLogged = loggedSets.some((s) => s?.id);
+
   return (
     <>
       <div className="set-hint">
@@ -69,6 +81,7 @@ function SetLogger({ exercise, prescription, loggedSets, day, onLogged }) {
         {Array.from({ length: prescription.sets }, (_, i) => {
           const done = loggedSets[i];
           const draft = draftFor(i);
+          const undoable = !!done?.id;
           return (
             <div className="set-row" key={i}>
               <div className="n">{i + 1}</div>
@@ -80,14 +93,22 @@ function SetLogger({ exercise, prescription, loggedSets, day, onLogged }) {
                 value={done ? done.weight : draft.weight}
                 disabled={!!done}
                 onChange={(e) => update(i, { weight: e.target.value })} />
-              <button className={`act${done ? ' done' : ''}`} onClick={() => !done && log(i)}
-                aria-label={done ? 'Logged' : `Log set ${i + 1}`} disabled={!!done}>
+              <button className={`act${done ? ' done' : ''}`}
+                onClick={() => (done ? undo(i) : log(i))}
+                disabled={!!done && !undoable}
+                title={undoable ? 'Tap to undo' : done ? 'Logged via the form' : 'Log this set'}
+                aria-label={undoable ? `Undo set ${i + 1}` : done ? `Set ${i + 1} logged` : `Log set ${i + 1}`}>
                 {done ? '✓' : '+'}
               </button>
             </div>
           );
         })}
       </div>
+      {anyLogged && (
+        <div className="muted" style={{ padding: '0 var(--pad) 12px', marginTop: -4 }}>
+          Tap ✓ to undo a set.
+        </div>
+      )}
     </>
   );
 }

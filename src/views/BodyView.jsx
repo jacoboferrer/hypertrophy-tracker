@@ -6,10 +6,13 @@
 // the one measurement that outranks everything else in the app.
 //
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { BODY_PARAMS } from '../config.js';
 import { smoothSeries, today as todayIso } from '../analysis.js';
-import { addBodyweight, addGrappling, removeGrappling } from '../store.js';
+import {
+  addBodyweight, addGrappling, removeGrappling,
+  exportJSON, importJSON, useStore,
+} from '../store.js';
 import { LineChart, Stat, Pill } from '../ui.jsx';
 
 const HARDNESS = { 1: 'Light', 2: 'Normal', 3: 'Hard' };
@@ -17,6 +20,8 @@ const HARDNESS = { 1: 'Light', 2: 'Normal', 3: 'Hard' };
 export default function BodyView({ bodyweight, grappling, onToast }) {
   const [value, setValue] = useState('');
   const [matDate, setMatDate] = useState(todayIso());
+  const fileInput = useRef(null);
+  const local = useStore();
 
   const series = smoothSeries(bodyweight);
   const latest = series[series.length - 1];
@@ -45,6 +50,31 @@ export default function BodyView({ bodyweight, grappling, onToast }) {
   };
 
   const recentMats = [...grappling].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 14);
+
+  // Everything logged in the app lives in this browser only — the Sheet is
+  // read-only from here. So there needs to be a way to get it out.
+  const download = () => {
+    const blob = new Blob([exportJSON()], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `hypertrophy-backup-${todayIso()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    onToast('Backup downloaded');
+  };
+
+  const restore = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      importJSON(await file.text());
+      onToast('Backup restored');
+    } catch {
+      onToast('Could not read that file');
+    }
+    event.target.value = '';
+  };
 
   return (
     <div className="page stack">
@@ -147,6 +177,24 @@ export default function BodyView({ bodyweight, grappling, onToast }) {
               ))}
             </div>
           )}
+      </div>
+
+      <div className="card">
+        <div className="label">This device</div>
+        <div className="dim" style={{ marginTop: 8 }}>
+          Sets, grappling and bodyweight logged in the app are stored in this browser only —
+          they are not written back to the Google Sheet, and another device will not see them.
+          Keep a backup.
+        </div>
+        <div className="row" style={{ gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+          <button className="btn small primary" onClick={download}>↓ Download backup</button>
+          <button className="btn small" onClick={() => fileInput.current?.click()}>↑ Restore</button>
+          <input ref={fileInput} type="file" accept="application/json,.json"
+            onChange={restore} style={{ display: 'none' }} />
+        </div>
+        <div className="muted mono" style={{ marginTop: 12 }}>
+          {local.sets.length} sets · {local.grappling.length} mat sessions · {local.bodyweight.length} weigh-ins
+        </div>
       </div>
     </div>
   );
