@@ -4,6 +4,13 @@ A session-counted mesocycle tracker for the 2026–27 course. Pulls logged sets
 from a Google Form → Sheet, prescribes what to do today, and keeps the rotation
 honest.
 
+## Guides
+
+- **[docs/SETUP.md](docs/SETUP.md)** — from a fresh clone on a new computer to a
+  working, deployable copy
+- **[docs/MAINTENANCE.md](docs/MAINTENANCE.md)** — making changes, getting them
+  live, and what breaks
+
 ## Setup
 
 ```bash
