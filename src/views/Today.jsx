@@ -6,12 +6,12 @@
 // day was possible.
 //
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PROGRAM } from '../config.js';
 import { prescribe, STATUS_STYLE } from '../progression.js';
 import { setBonus } from '../mesocycles.js';
 import { today as todayIso } from '../analysis.js';
-import { addSet, removeSet, addGrappling } from '../store.js';
+import { addSet, removeSet, addGrappling, saveNote, noteFor } from '../store.js';
 import { Pill, Track } from '../ui.jsx';
 
 function BlockHeader({ meso }) {
@@ -46,16 +46,18 @@ function SetLogger({ exercise, prescription, loggedSets, day, block, spec, onLog
   const draftFor = (i) => drafts[i] ?? {
     reps: prescription.lo,
     weight: prescription.weight ?? '',
+    rir: Math.round(prescription.rir),   // actual, pre-filled with the target
   };
 
   const update = (i, patch) => setDrafts((d) => ({ ...d, [i]: { ...draftFor(i), ...patch } }));
 
   const log = (i) => {
-    const { reps, weight } = draftFor(i);
+    const { reps, weight, rir } = draftFor(i);
     if (!reps || weight === '' || weight === null) return;
     addSet({
       date: iso, day, exercise: exercise.name, set: i + 1,
-      reps: Number(reps), weight: Number(weight), rir: prescription.rir,
+      reps: Number(reps), weight: Number(weight),
+      rir: rir === '' || rir === null ? null : Number(rir),
       block: block.id, rotation: spec.rotation,
     });
     onLogged?.(`${exercise.name} — set ${i + 1} logged`);
@@ -67,7 +69,7 @@ function SetLogger({ exercise, prescription, loggedSets, day, block, spec, onLog
     const done = loggedSets[i];
     if (!done?.id) return;
     removeSet(done.id);
-    setDrafts((d) => ({ ...d, [i]: { reps: done.reps, weight: done.weight } }));
+    setDrafts((d) => ({ ...d, [i]: { reps: done.reps, weight: done.weight, rir: done.rir } }));
     onLogged?.(`${exercise.name} — set ${i + 1} undone`);
   };
 
@@ -76,7 +78,7 @@ function SetLogger({ exercise, prescription, loggedSets, day, block, spec, onLog
   return (
     <>
       <div className="set-hint">
-        <span /><span>Reps</span><span>kg</span><span />
+        <span /><span>Reps</span><span>kg</span><span>RIR</span><span />
       </div>
       <div className="sets">
         {Array.from({ length: prescription.sets }, (_, i) => {
@@ -94,6 +96,12 @@ function SetLogger({ exercise, prescription, loggedSets, day, block, spec, onLog
                 value={done ? done.weight : draft.weight}
                 disabled={!!done}
                 onChange={(e) => update(i, { weight: e.target.value })} />
+              <input type="number" inputMode="numeric" min="0" max="6" step="1"
+                aria-label={`Set ${i + 1} reps in reserve`}
+                className={!done && Number(draft.rir) < prescription.rir ? 'hot' : undefined}
+                value={done ? (done.rir ?? '') : draft.rir}
+                disabled={!!done}
+                onChange={(e) => update(i, { rir: e.target.value })} />
               <button className={`act${done ? ' done' : ''}`}
                 onClick={() => (done ? undo(i) : log(i))}
                 disabled={!!done && !undoable}
@@ -155,6 +163,41 @@ function ExerciseCard({ exercise, index, history, block, spec, loggedSets, day, 
             : `${p.lastSummary.minReps}–${p.lastSummary.maxReps} reps`}
         </div>
       )}
+    </div>
+  );
+}
+
+function SessionNote({ date, day, block, onSaved }) {
+  const [text, setText] = useState(() => noteFor(date));
+  const [dirty, setDirty] = useState(false);
+
+  // Reload when the day rolls over mid-session.
+  useEffect(() => { setText(noteFor(date)); setDirty(false); }, [date]);
+
+  const commit = () => {
+    if (!dirty) return;
+    saveNote({ date, day, block: block.id, note: text });
+    setDirty(false);
+    onSaved?.(text.trim() ? 'Note saved' : 'Note cleared');
+  };
+
+  return (
+    <div className="card">
+      <div className="label">Session note — optional</div>
+      <div className="field" style={{ marginTop: 8 }}>
+        <textarea
+          value={text}
+          placeholder="Left shoulder tweaky · trained 3h after grappling · gym packed, skipped leg press"
+          style={{ minHeight: 64, fontFamily: 'inherit', fontSize: 14 }}
+          onChange={(e) => { setText(e.target.value); setDirty(true); }}
+          onBlur={commit} />
+      </div>
+      <div className="row-between" style={{ marginTop: 8 }}>
+        <span className="muted">
+          {dirty ? 'Unsaved' : text.trim() ? 'Saved' : 'The context you will want in April.'}
+        </span>
+        {dirty && <button className="btn small primary" onClick={commit}>Save note</button>}
+      </div>
     </div>
   );
 }
@@ -229,6 +272,8 @@ export default function Today({ meso, day, history, data, grappling, lastSession
           />
         ))}
       </div>
+
+      <SessionNote date={iso} day={day} block={block} onSaved={onToast} />
 
       <div className="card">
         <div className="label">Also today</div>

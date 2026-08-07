@@ -28,6 +28,7 @@ export const APP_TABS = {
   sets: 'App Log',
   grappling: 'Grappling',
   bodyweight: 'Bodyweight',
+  notes: 'Notes',
 };
 
 // Apps Script web app deployment. See apps-script/Code.gs for the endpoint and

@@ -11,7 +11,7 @@
 import { SYNC_CONFIG } from './config.js';
 import { pendingRecords, markSynced } from './store.js';
 
-export const TYPES = ['sets', 'grappling', 'bodyweight'];
+export const TYPES = ['sets', 'grappling', 'bodyweight', 'notes'];
 
 /**
  * POST one batch. Sent as text/plain deliberately: that keeps it a "simple"

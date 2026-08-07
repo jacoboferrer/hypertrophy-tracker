@@ -50,6 +50,11 @@ const TABS = {
     headers: ['id', 'date', 'kg', 'loggedAt'],
     fields: ['id', 'date', 'value', 'loggedAt'],
   },
+  notes: {
+    name: 'Notes',
+    headers: ['id', 'date', 'day', 'block', 'note', 'loggedAt'],
+    fields: ['id', 'date', 'day', 'block', 'note', 'loggedAt'],
+  },
 };
 
 function sheetFor(key) {

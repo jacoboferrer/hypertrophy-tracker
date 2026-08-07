@@ -161,7 +161,7 @@ h3 { font-size: 16px; font-weight: 600; }
 
 /* ── Set logger ─────────────────────────────────────────────────────── */
 .sets { display: flex; flex-direction: column; gap: 6px; padding: 0 var(--pad) 14px; }
-.set-row { display: grid; grid-template-columns: 26px 1fr 1fr auto; gap: 8px; align-items: center; }
+.set-row { display: grid; grid-template-columns: 20px 1fr 1fr 58px auto; gap: 6px; align-items: center; }
 .set-row .n { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
 .set-row input {
   width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--rule);
@@ -170,9 +170,11 @@ h3 { font-size: 16px; font-weight: 600; }
 }
 .set-row input::-webkit-outer-spin-button, .set-row input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .set-row input:disabled { background: var(--good-bg); border-color: var(--good-line); color: var(--good); font-weight: 600; }
+/* Actual RIR below the prescribed target — trained harder than the block asked. */
+.set-row input.hot { border-color: var(--accent); color: var(--accent); font-weight: 700; }
 .set-row .act { min-width: 44px; min-height: 40px; border-radius: 8px; background: var(--sunk); font-size: 15px; display: flex; align-items: center; justify-content: center; }
 .set-row .act.done { background: var(--good-bg); color: var(--good); }
-.set-hint { display: grid; grid-template-columns: 26px 1fr 1fr auto; gap: 8px; padding: 0 var(--pad) 4px; }
+.set-hint { display: grid; grid-template-columns: 20px 1fr 1fr 58px auto; gap: 6px; padding: 0 var(--pad) 4px; }
 .set-hint span { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); text-align: center; }
 
 /* ── Volume chart ───────────────────────────────────────────────────── */

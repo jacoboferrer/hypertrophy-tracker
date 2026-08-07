@@ -13,7 +13,7 @@ import { useSyncExternalStore } from 'react';
 
 const KEY = 'hypertrophy-tracker/v1';
 
-const EMPTY = { sets: [], grappling: [], bodyweight: [] };
+const EMPTY = { sets: [], grappling: [], bodyweight: [], notes: [] };
 
 // Absent under Node, where the test scripts exercise this module directly.
 // Declared before load() runs — a const referenced from a hoisted function is
@@ -102,6 +102,20 @@ export function removeBodyweight(id) {
   commit({ ...state, bodyweight: state.bodyweight.filter((b) => b.id !== id) });
 }
 
+// ── Session notes ───────────────────────────────────────────────────────
+/** One note per session date; re-saving replaces the unsynced draft. */
+export function saveNote({ date, day, block, note }) {
+  const text = String(note ?? '').trim();
+  const without = state.notes.filter((n) => n.date !== date || n.syncedAt);
+  if (!text) { commit({ ...state, notes: without }); return; }
+  commit({ ...state, notes: [...without, stamp({ date, day, block, note: text })] });
+}
+
+export function noteFor(date) {
+  const matches = state.notes.filter((n) => n.date === date);
+  return matches.length ? matches[matches.length - 1].note : '';
+}
+
 // ── Sync bookkeeping ────────────────────────────────────────────────────
 /** Records not yet confirmed by the Sheet. */
 export function pendingRecords(type) {
@@ -145,6 +159,7 @@ export function importJSON(text) {
     sets: parsed.sets || [],
     grappling: parsed.grappling || [],
     bodyweight: parsed.bodyweight || [],
+    notes: parsed.notes || [],
   });
 }
 

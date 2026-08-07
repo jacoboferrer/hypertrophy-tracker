@@ -4,12 +4,13 @@
 
 import { PROGRAM, DAY_ORDER, nextDayAfter } from '../src/config.js';
 import { canonical, metaFor } from '../src/exercises.js';
-import { BLOCKS, mesocycleState, rotationSpec } from '../src/mesocycles.js';
+import { BLOCKS, mesocycleState, rotationSpec, PROGRAM_START, TOTAL_PLANNED_SESSIONS } from '../src/mesocycles.js';
 import { prescribe } from '../src/progression.js';
 import { toSessions, byExercise, volumePerRotation } from '../src/analysis.js';
 import { parseRows } from '../src/sheets.js';
-import { addSet, addSets, pendingRecords, markSynced, clearAll, removeSet } from '../src/store.js';
+import { addSet, addSets, pendingRecords, markSynced, clearAll, removeSet, saveNote, noteFor } from '../src/store.js';
 import { sheetValues } from './fixture.mjs';
+import { TYPES as SYNC_TYPES } from '../src/sync.js';
 
 let pass = 0, fail = 0;
 const check = (name, cond, detail = '') => {
@@ -52,6 +53,7 @@ check('row history now merges into one series',
 
 // ── 2. Mesocycle state machine ────────────────────────────────────────────
 console.log('\nMesocycle state');
+const byId = Object.fromEntries(BLOCKS.map((b) => [b.id, b]));
 const at = (n) => mesocycleState(Array.from({ length: n }, () => '2026-10-01'));
 check('0 sessions → M0, session 1', at(0).block.id === 'M0' && at(0).sessionNumber === 1);
 check('6 sessions → M1, session 1', at(6).block.id === 'M1' && at(6).sessionNumber === 1);
@@ -63,8 +65,7 @@ check('historic sets before 7 Sep do not advance the plan',
 check('RIR tightens 3 → 2 → 1.5 → 0.5 across rotations',
   [0, 3, 6, 9].map((i) => rotationSpec(BLOCKS[1], i).rir).join(',') === '3,2,1.5,0.5');
 check('deload prescribes RIR 5', rotationSpec(BLOCKS[1], 12).rir === 5);
-check(`total planned sessions = ${BLOCKS.reduce((s, b) => s + b.sessions, 0)}`,
-  BLOCKS.reduce((s, b) => s + b.sessions, 0) === 85);
+check(`total planned sessions = ${TOTAL_PLANNED_SESSIONS}`, TOTAL_PLANNED_SESSIONS === 100);
 
 // ── 3. Rotation order ─────────────────────────────────────────────────────
 console.log('\nRotation');
@@ -95,7 +96,7 @@ for (const [id, block] of BLOCKS.map((b, i) => [b.id, b])) {
     }
   }
 }
-check('every prescribed load lands on a real increment across all 85 sessions',
+check(`every prescribed load lands on a real increment across all ${TOTAL_PLANNED_SESSIONS} sessions`,
   problems.length === 0, problems.slice(0, 4).join(' | '));
 
 // The specific bug: averaging 57.5/57.5/55 used to propose 56.7 kg.
@@ -105,8 +106,9 @@ const benchHistory = { 'Barbell Flat Bench Press': [
   { date: '2026-05-25', exercise: 'Barbell Flat Bench Press', set: 3, reps: 5, weight: 55 },
 ] };
 const benchEx = PROGRAM.A.exercises[1];
+const midBlock = rotationSpec(byId.M2, 4);   // rotation 2 — past the block restart
 const held = prescribe({ exercise: benchEx, exerciseIndex: 1, history: benchHistory,
-  block: BLOCKS[3], spec: rotationSpec(BLOCKS[3], 1) });
+  block: byId.M2, spec: midBlock });
 check('top set beats the average (57.5, not 56.7)', held.weight === 57.5, `${held.weight}`);
 check('a short set blocks the increase', held.status === 'hold', held.status);
 
@@ -116,15 +118,15 @@ const allCleared = { 'Barbell Flat Bench Press': [
   { date: '2026-05-25', exercise: 'Barbell Flat Bench Press', set: 3, reps: 8, weight: 55 },
 ] };
 const up = prescribe({ exercise: benchEx, exerciseIndex: 1, history: allCleared,
-  block: BLOCKS[3], spec: rotationSpec(BLOCKS[3], 1) });
+  block: byId.M2, spec: midBlock });
 check('all sets at the top of the range adds one increment', up.status === 'increase' && up.weight === 57.5, `${up.status} ${up.weight}`);
 
 const restart = prescribe({ exercise: benchEx, exerciseIndex: 1, history: allCleared,
-  block: BLOCKS[1], spec: rotationSpec(BLOCKS[1], 0) });
+  block: byId.M1, spec: rotationSpec(byId.M1, 0) });
 check('M1 opens the bench at its restart load of 45 kg', restart.weight === 45, `${restart.weight}`);
 
 const deload = prescribe({ exercise: benchEx, exerciseIndex: 1, history: allCleared,
-  block: BLOCKS[1], spec: rotationSpec(BLOCKS[1], 12) });
+  block: byId.M1, spec: rotationSpec(byId.M1, 12) });
 check('deload drops to 60% and halves the sets', deload.weight === 32.5 && deload.sets <= 2, `${deload.weight}kg × ${deload.sets}`);
 
 // ── 5. Volume attribution ─────────────────────────────────────────────────
@@ -185,6 +187,46 @@ const undoTarget = pendingRecords('sets')[0];
 removeSet(undoTarget.id);
 check('an undone set never reaches the Sheet', pendingRecords('sets').length === 0);
 clearAll();
+
+// ── 7. Session notes ──────────────────────────────────────────────────────
+console.log('\nSession notes');
+clearAll();
+saveNote({ date: '2026-08-17', day: 'A', block: 'M0', note: '  left shoulder tweaky  ' });
+check('a note is stored trimmed', noteFor('2026-08-17') === 'left shoulder tweaky');
+check('and queues for the Sheet', pendingRecords('notes').length === 1);
+saveNote({ date: '2026-08-17', day: 'A', block: 'M0', note: 'revised' });
+check('re-saving replaces the unsynced draft', pendingRecords('notes').length === 1 && noteFor('2026-08-17') === 'revised');
+saveNote({ date: '2026-08-17', day: 'A', block: 'M0', note: '' });
+check('clearing removes it', noteFor('2026-08-17') === '' && pendingRecords('notes').length === 0);
+check('notes are a synced record type', SYNC_TYPES.includes('notes'));
+clearAll();
+
+// ── 8. Re-entry discount only after real time off ─────────────────────────
+console.log('\nRe-entry discount');
+const m0 = BLOCKS[0];
+const entrySpec = rotationSpec(m0, 0);
+const squat = PROGRAM.A.exercises[0];
+const iso = (daysAgo) => new Date(Date.now() - daysAgo * 86400000).toISOString().slice(0, 10);
+
+const stale = { 'Barbell Back Squat': [1, 2, 3].map((n) => ({ date: iso(80), exercise: 'Barbell Back Squat', set: n, reps: 8, weight: 50 })) };
+const fresh = { 'Barbell Back Squat': [1, 2, 3].map((n) => ({ date: iso(4), exercise: 'Barbell Back Squat', set: n, reps: 8, weight: 50 })) };
+
+const afterLayoff = prescribe({ exercise: squat, exerciseIndex: 0, history: stale, block: m0, spec: entrySpec });
+const afterTraining = prescribe({ exercise: squat, exerciseIndex: 0, history: fresh, block: m0, spec: entrySpec });
+
+check('80 days off → discounted to ~65%', afterLayoff.status === 'reentry' && afterLayoff.weight === 32.5, `${afterLayoff.weight} kg`);
+check('4 days off → no discount, normal progression instead',
+  afterTraining.status !== 'reentry' && afterTraining.weight >= 50,
+  `${afterTraining.status} ${afterTraining.weight} kg`);
+check('either way the load is loadable', [afterLayoff, afterTraining].every((p) => (p.weight * 10) % 25 === 0));
+
+// ── 9. Start date ─────────────────────────────────────────────────────────
+console.log('\nCalendar');
+check('program starts Monday 17 August 2026', PROGRAM_START === '2026-08-17');
+check('17 Aug 2026 is a Monday', new Date(`${PROGRAM_START}T00:00:00`).getDay() === 1);
+check('blocks total 100 sessions', TOTAL_PLANNED_SESSIONS === 100, `${TOTAL_PLANNED_SESSIONS}`);
+check('August sessions do not consume the block', mesocycleState(['2026-08-10']).totalDone === 0);
+check('sessions from the 17th do', mesocycleState(['2026-08-17', '2026-08-19']).totalDone === 2);
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

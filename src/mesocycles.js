@@ -10,53 +10,59 @@
 // only; the strip slides right whenever a week goes missing.
 //
 
-export const PROGRAM_START = '2026-09-07';
+export const PROGRAM_START = '2026-08-17';
 
 export const BLOCKS = [
   {
     id: 'M0', name: 'Re-entry', kind: 'entry', sessions: 6,
-    window: '7 – 27 Sep',
-    note: 'Two sets per exercise, RIR 4, about 65% of May loads. You have not lifted since 1 June — this block exists to make M1 possible, not to build anything.',
+    window: '17 Aug – 6 Sep',
+    note: 'Two sets per exercise, RIR 4, about 65% of your last working loads. You have not lifted since 1 June — this block exists to make M1 possible, not to build anything.',
     setCap: 2, rir: 4, loadPct: 0.65,
   },
   {
     id: 'M1', name: 'Accumulation I', kind: 'ramp', sessions: 13,
-    window: '28 Sep – 8 Nov',
-    note: 'Full ramp, and the block that breaks the plateaus: compounds open at their restart loads and climb one increment per rotation.',
+    window: '7 Sep – 11 Oct',
+    note: 'Full ramp, and the block that breaks the plateaus: compounds open at their restart loads and climb one increment per rotation. The term is fresh — this is the easiest block of the year to actually run.',
     useRestart: true,
   },
   {
     id: 'M2', name: 'Accumulation II', kind: 'ramp', sessions: 13,
-    window: '9 Nov – 20 Dec',
+    window: '12 Oct – 15 Nov',
     note: 'Highest volume of the year — the peak rotations carry an extra accessory set. Compounds restart one increment below M1’s finish.',
     extraAccessorySet: true,
   },
   {
+    id: 'M3', name: 'Intensification', kind: 'ramp', sessions: 13,
+    window: '16 Nov – 20 Dec',
+    note: 'Heavier and leaner: compound rep ranges drop by two, one fewer accessory set. The lowest-volume working block, deliberately placed in the busiest weeks of term — it is the cheapest to recover from alongside hard grappling.',
+    repShift: -2, setDelta: -1,
+  },
+  {
     id: 'H1', name: 'Hold — exams', kind: 'hold', sessions: 8,
-    window: '21 Dec – 25 Jan',
+    window: '21 Dec – 24 Jan',
     note: 'Two sessions a week, two sets each, RIR 3, load held. About a third of normal volume retains essentially all of your strength. Planned, so December is a decision rather than a collapse.',
     setCap: 2, rir: 3, loadPct: 1,
   },
   {
-    id: 'M3', name: 'Intensification', kind: 'ramp', sessions: 13,
-    window: '26 Jan – 7 Mar',
-    note: 'Heavier and leaner: compound rep ranges drop by two, one fewer accessory set. Lowest total volume of any working block, so it is the cheapest to recover from alongside hard grappling.',
-    repShift: -2, setDelta: -1,
-  },
-  {
     id: 'M4', name: 'Accumulation III', kind: 'ramp', sessions: 13,
-    window: '8 Mar – 18 Apr',
-    note: 'Volume again, now on top of M3’s higher strength base. This is where the year’s size actually arrives.',
+    window: '25 Jan – 28 Feb',
+    note: 'Volume again, on top of M3’s higher strength base. This is where the year’s size actually arrives.',
   },
   {
-    id: 'M5', name: 'Peak + test', kind: 'ramp', sessions: 13,
-    window: '19 Apr – 30 May',
-    note: 'Final accumulation, ending with a genuine top-set test on bench, squat and row.',
-    test: true,
+    id: 'M5', name: 'Accumulation IV', kind: 'ramp', sessions: 13,
+    window: '1 Mar – 4 Apr',
+    note: 'The second spring volume block, and the last one before the year’s heaviest work.',
+    extraAccessorySet: true,
   },
   {
-    id: 'H2', name: 'Hold — exams', kind: 'hold', sessions: 6,
-    window: 'June',
+    id: 'M6', name: 'Intensification + test', kind: 'ramp', sessions: 13,
+    window: '5 Apr – 9 May',
+    note: 'Accumulate, then intensify, then test — the order that makes a test mean something. Ends with a genuine top set on bench, squat and row against a year of data.',
+    repShift: -2, setDelta: -1, test: true,
+  },
+  {
+    id: 'H2', name: 'Hold — exams', kind: 'hold', sessions: 8,
+    window: '10 May – 30 Jun',
     note: 'Maintenance again, then re-plan in July from a year of clean data rather than five months of Day A.',
     setCap: 2, rir: 3, loadPct: 1,
   },
@@ -66,7 +72,7 @@ export const TOTAL_PLANNED_SESSIONS = BLOCKS.reduce((s, b) => s + b.sessions, 0)
 
 // Reps in reserve by rotation. Nothing in the old log ever prescribed an easy
 // week — 95 of 268 sets were logged at RIR 0.
-const RIR_BY_ROTATION = [3, 2, 1.5, 0.5];
+export const RIR_BY_ROTATION = [3, 2, 1.5, 0.5];
 const DELOAD_RIR = 5;
 
 /**

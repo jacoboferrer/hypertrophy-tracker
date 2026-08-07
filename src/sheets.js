@@ -136,7 +136,7 @@ export function sheetsUrl({ SHEET_ID, API_KEY, SHEET_NAME }) {
  * Rows the app itself wrote, read back from the tabs it owns.
  * Columns are fixed by apps-script/Code.gs — keep the two in step.
  */
-function parseAppTabs({ sets = [], grappling = [], bodyweight = [] }) {
+function parseAppTabs({ sets = [], grappling = [], bodyweight = [], notes = [] }) {
   return {
     sets: sets
       .filter((r) => r[0] && r[1] && r[3])
@@ -158,6 +158,10 @@ function parseAppTabs({ sets = [], grappling = [], bodyweight = [] }) {
     bodyweight: bodyweight
       .filter((r) => r[0] && r[1] && num(r[2]) !== null)
       .map((r) => ({ id: r[0], date: r[1], value: num(r[2]), source: 'app' })),
+
+    notes: notes
+      .filter((r) => r[0] && r[1] && r[4])
+      .map((r) => ({ id: r[0], date: r[1], day: r[2] || null, block: r[3] || null, note: r[4], source: 'app' })),
   };
 }
 
@@ -172,21 +176,24 @@ async function fetchAppTabs() {
     `${APP_TABS.sets}!A2:L5000`,
     `${APP_TABS.grappling}!A2:F5000`,
     `${APP_TABS.bodyweight}!A2:D5000`,
+    `${APP_TABS.notes}!A2:F5000`,
   ];
   const query = ranges.map((r) => `ranges=${encodeURIComponent(r)}`).join('&');
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?${query}&key=${API_KEY}`;
 
+  const empty = { sets: [], grappling: [], bodyweight: [], notes: [] };
   try {
     const response = await fetch(url);
-    if (!response.ok) return { sets: [], grappling: [], bodyweight: [] };
+    if (!response.ok) return empty;
     const { valueRanges = [] } = await response.json();
     return parseAppTabs({
       sets: valueRanges[0]?.values || [],
       grappling: valueRanges[1]?.values || [],
       bodyweight: valueRanges[2]?.values || [],
+      notes: valueRanges[3]?.values || [],
     });
   } catch {
-    return { sets: [], grappling: [], bodyweight: [] };
+    return empty;
   }
 }
 
@@ -207,5 +214,5 @@ export async function fetchFromGoogleSheets() {
   const bodyweight = [...form.bodyweight, ...app.bodyweight];
 
   console.log(`[Sheets] form ${form.sets.length} sets · app ${app.sets.length} sets, ${app.grappling.length} mat, ${app.bodyweight.length} weigh-ins`);
-  return { sets, bodyweight, grappling: app.grappling };
+  return { sets, bodyweight, grappling: app.grappling, notes: app.notes };
 }

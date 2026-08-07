@@ -12,6 +12,10 @@
 import { metaFor, roundToIncrement } from './exercises.js';
 import { setBonus } from './mesocycles.js';
 
+// A gap longer than this is treated as detrained, which is what re-entry and
+// hold blocks discount against.
+const DETRAINING_DAYS = 21;
+
 export function e1rm(weight, reps) {
   return weight * (1 + reps / 30);
 }
@@ -94,9 +98,13 @@ export function prescribe({ exercise, exerciseIndex, history, block, spec }) {
       message: 'Deload — half the sets, 60% of load, leave five in reserve' };
   }
 
-  if (spec.loadPct && spec.loadPct < 1) {
+  // The re-entry discount assumes detraining. It should not fire when you have
+  // been training recently — coming into M0 off a few August sessions, 65% of
+  // an August load would be far too light.
+  const daysSinceLast = (Date.now() - new Date(`${last.date}T00:00:00`)) / 86400000;
+  if (spec.loadPct && spec.loadPct < 1 && daysSinceLast > DETRAINING_DAYS) {
     return { ...base, weight: round(top.weight * spec.loadPct), status: 'reentry', lastSummary,
-      message: `${Math.round(spec.loadPct * 100)}% of your last working load` };
+      message: `${Math.round(spec.loadPct * 100)}% of your last working load — ${Math.round(daysSinceLast)} days off` };
   }
 
   if (firstExposure && block.useRestart && exercise.restart) {
