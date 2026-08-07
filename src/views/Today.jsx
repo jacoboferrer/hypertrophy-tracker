@@ -39,7 +39,7 @@ function BlockHeader({ meso }) {
   );
 }
 
-function SetLogger({ exercise, prescription, loggedSets, day, onLogged }) {
+function SetLogger({ exercise, prescription, loggedSets, day, block, spec, onLogged }) {
   const [drafts, setDrafts] = useState({});
   const iso = todayIso();
 
@@ -56,6 +56,7 @@ function SetLogger({ exercise, prescription, loggedSets, day, onLogged }) {
     addSet({
       date: iso, day, exercise: exercise.name, set: i + 1,
       reps: Number(reps), weight: Number(weight), rir: prescription.rir,
+      block: block.id, rotation: spec.rotation,
     });
     onLogged?.(`${exercise.name} — set ${i + 1} logged`);
   };
@@ -142,7 +143,8 @@ function ExerciseCard({ exercise, index, history, block, spec, loggedSets, day, 
       </div>
 
       {!p.untracked && (
-        <SetLogger exercise={exercise} prescription={p} loggedSets={loggedSets} day={day} onLogged={onLogged} />
+        <SetLogger exercise={exercise} prescription={p} loggedSets={loggedSets}
+          day={day} block={block} spec={spec} onLogged={onLogged} />
       )}
 
       {p.lastSummary && (

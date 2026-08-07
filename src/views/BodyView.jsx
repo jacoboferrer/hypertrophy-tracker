@@ -51,8 +51,8 @@ export default function BodyView({ bodyweight, grappling, onToast }) {
 
   const recentMats = [...grappling].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 14);
 
-  // Everything logged in the app lives in this browser only — the Sheet is
-  // read-only from here. So there needs to be a way to get it out.
+  // A second copy, independent of the Sheet sync — for clearing browser data,
+  // or moving an unsent queue to another device.
   const download = () => {
     const blob = new Blob([exportJSON()], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -182,9 +182,9 @@ export default function BodyView({ bodyweight, grappling, onToast }) {
       <div className="card">
         <div className="label">This device</div>
         <div className="dim" style={{ marginTop: 8 }}>
-          Sets, grappling and bodyweight logged in the app are stored in this browser only —
-          they are not written back to the Google Sheet, and another device will not see them.
-          Keep a backup.
+          Everything logged here is written to the Google Sheet as soon as there is a
+          connection, and held on this device until then. The backup below is a second
+          copy — useful before clearing browser data, or to move a queue between devices.
         </div>
         <div className="row" style={{ gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
           <button className="btn small primary" onClick={download}>↓ Download backup</button>

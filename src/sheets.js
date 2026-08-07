@@ -19,7 +19,7 @@
 //   24–26 Full Body A/B/C cols → exercise name (take priority)
 //
 
-import { SHEETS_CONFIG } from './config.js';
+import { SHEETS_CONFIG, APP_TABS } from './config.js';
 import { canonical } from './exercises.js';
 
 const ROUTINE_TO_DAY = {
@@ -131,6 +131,65 @@ export function sheetsUrl({ SHEET_ID, API_KEY, SHEET_NAME }) {
   return `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}`;
 }
 
+
+/**
+ * Rows the app itself wrote, read back from the tabs it owns.
+ * Columns are fixed by apps-script/Code.gs — keep the two in step.
+ */
+function parseAppTabs({ sets = [], grappling = [], bodyweight = [] }) {
+  return {
+    sets: sets
+      .filter((r) => r[0] && r[1] && r[3])
+      .map((r) => ({
+        id: r[0], date: r[1], day: r[2] || 'A', exercise: canonical(r[3]),
+        set: parseInt(r[4], 10) || 1, reps: parseInt(r[5], 10), weight: num(r[6]),
+        rir: num(r[7]), block: r[8] || null, rotation: num(r[9]),
+        comment: r[10] || null, source: 'app',
+      }))
+      .filter((r) => !isNaN(r.reps) && r.weight !== null),
+
+    grappling: grappling
+      .filter((r) => r[0] && r[1])
+      .map((r) => ({
+        id: r[0], date: r[1], minutes: num(r[2]) ?? 90,
+        hardness: num(r[3]) ?? 2, source: 'app',
+      })),
+
+    bodyweight: bodyweight
+      .filter((r) => r[0] && r[1] && num(r[2]) !== null)
+      .map((r) => ({ id: r[0], date: r[1], value: num(r[2]), source: 'app' })),
+  };
+}
+
+/**
+ * The app's own tabs may not exist yet — on a fresh install nothing has been
+ * written. A missing range makes batchGet 400, so this tolerates failure and
+ * returns empties rather than breaking the whole load.
+ */
+async function fetchAppTabs() {
+  const { SHEET_ID, API_KEY } = SHEETS_CONFIG;
+  const ranges = [
+    `${APP_TABS.sets}!A2:L5000`,
+    `${APP_TABS.grappling}!A2:F5000`,
+    `${APP_TABS.bodyweight}!A2:D5000`,
+  ];
+  const query = ranges.map((r) => `ranges=${encodeURIComponent(r)}`).join('&');
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?${query}&key=${API_KEY}`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return { sets: [], grappling: [], bodyweight: [] };
+    const { valueRanges = [] } = await response.json();
+    return parseAppTabs({
+      sets: valueRanges[0]?.values || [],
+      grappling: valueRanges[1]?.values || [],
+      bodyweight: valueRanges[2]?.values || [],
+    });
+  } catch {
+    return { sets: [], grappling: [], bodyweight: [] };
+  }
+}
+
 export async function fetchFromGoogleSheets() {
   const response = await fetch(sheetsUrl(SHEETS_CONFIG));
   if (!response.ok) {
@@ -139,8 +198,14 @@ export async function fetchFromGoogleSheets() {
   }
 
   const { values = [] } = await response.json();
-  const { sets, bodyweight } = parseRows(values);
+  const form = parseRows(values);
+  const app = await fetchAppTabs();
 
-  console.log(`[Sheets] ${values.length} rows → ${sets.length} working sets, ${bodyweight.length} bodyweight readings`);
-  return { sets, bodyweight };
+  // Form rows first so they keep their place in history; app rows are the new
+  // single log going forward.
+  const sets = [...form.sets, ...app.sets];
+  const bodyweight = [...form.bodyweight, ...app.bodyweight];
+
+  console.log(`[Sheets] form ${form.sets.length} sets · app ${app.sets.length} sets, ${app.grappling.length} mat, ${app.bodyweight.length} weigh-ins`);
+  return { sets, bodyweight, grappling: app.grappling };
 }

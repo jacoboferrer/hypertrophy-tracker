@@ -15,10 +15,16 @@ const KEY = 'hypertrophy-tracker/v1';
 
 const EMPTY = { sets: [], grappling: [], bodyweight: [] };
 
+// Absent under Node, where the test scripts exercise this module directly.
+// Declared before load() runs — a const referenced from a hoisted function is
+// still in its temporal dead zone until this line executes.
+const hasStorage = typeof localStorage !== 'undefined';
+
 let state = load();
 const listeners = new Set();
 
 function load() {
+  if (!hasStorage) return EMPTY;
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return EMPTY;
@@ -30,10 +36,14 @@ function load() {
 
 function commit(next) {
   state = next;
-  try {
-    localStorage.setItem(KEY, JSON.stringify(state));
-  } catch (err) {
-    console.warn('[store] could not persist:', err.message);
+  if (hasStorage) {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(state));
+    } catch (err) {
+      // Quota exceeded, or Safari private mode. The in-memory state is still
+      // correct and the sync queue will drain it — but say so.
+      console.warn('[store] could not persist:', err.message);
+    }
   }
   listeners.forEach((l) => l());
 }
@@ -47,16 +57,25 @@ export function useStore() {
   return useSyncExternalStore(subscribe, () => state, () => EMPTY);
 }
 
-const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+const uid = () => (crypto?.randomUUID
+  ? crypto.randomUUID()
+  : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`);
+
+const stamp = (entry) => ({
+  id: uid(),
+  source: 'local',
+  syncedAt: null,      // set once the Sheet has confirmed the write
+  loggedAt: new Date().toISOString(),
+  ...entry,
+});
 
 // ── Sets ────────────────────────────────────────────────────────────────
 export function addSet(entry) {
-  commit({ ...state, sets: [...state.sets, { id: uid(), source: 'local', ...entry }] });
+  commit({ ...state, sets: [...state.sets, stamp(entry)] });
 }
 
 export function addSets(entries) {
-  const stamped = entries.map((e) => ({ id: uid(), source: 'local', ...e }));
-  commit({ ...state, sets: [...state.sets, ...stamped] });
+  commit({ ...state, sets: [...state.sets, ...entries.map(stamp)] });
 }
 
 export function removeSet(id) {
@@ -65,8 +84,8 @@ export function removeSet(id) {
 
 // ── Grappling ───────────────────────────────────────────────────────────
 export function addGrappling({ date, minutes = 90, hardness = 2 }) {
-  const without = state.grappling.filter((g) => g.date !== date);
-  commit({ ...state, grappling: [...without, { id: uid(), date, minutes, hardness }] });
+  const without = state.grappling.filter((g) => g.date !== date || g.syncedAt);
+  commit({ ...state, grappling: [...without, stamp({ date, minutes, hardness })] });
 }
 
 export function removeGrappling(id) {
@@ -75,12 +94,44 @@ export function removeGrappling(id) {
 
 // ── Bodyweight ──────────────────────────────────────────────────────────
 export function addBodyweight({ date, value }) {
-  const without = state.bodyweight.filter((b) => b.date !== date);
-  commit({ ...state, bodyweight: [...without, { id: uid(), date, value }] });
+  const without = state.bodyweight.filter((b) => b.date !== date || b.syncedAt);
+  commit({ ...state, bodyweight: [...without, stamp({ date, value })] });
 }
 
 export function removeBodyweight(id) {
   commit({ ...state, bodyweight: state.bodyweight.filter((b) => b.id !== id) });
+}
+
+// ── Sync bookkeeping ────────────────────────────────────────────────────
+/** Records not yet confirmed by the Sheet. */
+export function pendingRecords(type) {
+  return (state[type] || []).filter((r) => !r.syncedAt);
+}
+
+/** Mark the ids the endpoint accepted, so they stop being re-sent. */
+export function markSynced(type, ids) {
+  if (!ids?.length) return;
+  const accepted = new Set(ids);
+  const at = new Date().toISOString();
+  commit({
+    ...state,
+    [type]: state[type].map((r) => (accepted.has(r.id) && !r.syncedAt ? { ...r, syncedAt: at } : r)),
+  });
+}
+
+/**
+ * Drop local copies the Sheet has echoed back, so the same set is not held in
+ * two places once it is safely stored.
+ */
+export function pruneSynced(remoteIdsByType) {
+  let changed = false;
+  const next = { ...state };
+  for (const [type, ids] of Object.entries(remoteIdsByType)) {
+    if (!ids?.size) continue;
+    const kept = state[type].filter((r) => !(r.syncedAt && ids.has(r.id)));
+    if (kept.length !== state[type].length) { next[type] = kept; changed = true; }
+  }
+  if (changed) commit(next);
 }
 
 // ── Backup ──────────────────────────────────────────────────────────────

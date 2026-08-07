@@ -22,6 +22,23 @@ export const SHEETS_CONFIG = {
   SHEET_NAME: env.VITE_SHEETS_TAB || 'Respuestas de formulario 1',
 };
 
+// Tabs the app owns and writes to, via the Apps Script endpoint. The Form's
+// response tab above stays read-only — it is the historical archive.
+export const APP_TABS = {
+  sets: 'App Log',
+  grappling: 'Grappling',
+  bodyweight: 'Bodyweight',
+};
+
+// Apps Script web app deployment. See apps-script/Code.gs for the endpoint and
+// the README for how to deploy it. Without a URL the app stays read-only and
+// everything logged simply queues on the device.
+export const SYNC_CONFIG = {
+  URL: env.VITE_SYNC_URL || '',
+  TOKEN: env.VITE_SYNC_TOKEN || '',
+  get enabled() { return Boolean(this.URL); },
+};
+
 // ─── PROGRAM ─────────────────────────────────────────────────────────────────
 //
 // Revised for the 2026–27 course. Four obligatory lifts per session with the

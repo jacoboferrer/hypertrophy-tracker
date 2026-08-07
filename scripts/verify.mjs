@@ -8,6 +8,7 @@ import { BLOCKS, mesocycleState, rotationSpec } from '../src/mesocycles.js';
 import { prescribe } from '../src/progression.js';
 import { toSessions, byExercise, volumePerRotation } from '../src/analysis.js';
 import { parseRows } from '../src/sheets.js';
+import { addSet, addSets, pendingRecords, markSynced, clearAll, removeSet } from '../src/store.js';
 import { sheetValues } from './fixture.mjs';
 
 let pass = 0, fail = 0;
@@ -158,6 +159,32 @@ check('new rotation gives hamstrings real volume', projected.hams >= 5, `${proje
 check('new rotation puts back ahead of triceps', projected.back > projected.triceps,
   `${projected.back.toFixed(1)} vs ${projected.triceps.toFixed(1)}`);
 check('neck is now trained', (projected.neck || 0) > 0);
+
+// ── 6. Sync queue ─────────────────────────────────────────────────────────
+console.log('\nSync queue');
+clearAll();
+addSets([
+  { date: '2026-09-07', day: 'A', exercise: 'Barbell Back Squat', set: 1, reps: 8, weight: 50 },
+  { date: '2026-09-07', day: 'A', exercise: 'Barbell Back Squat', set: 2, reps: 8, weight: 50 },
+]);
+let queued = pendingRecords('sets');
+check('newly logged sets queue for the Sheet', queued.length === 2, `${queued.length}`);
+check('each carries a unique id', new Set(queued.map((r) => r.id)).size === 2);
+check('each carries a loggedAt timestamp', queued.every((r) => r.loggedAt));
+
+markSynced('sets', [queued[0].id]);
+queued = pendingRecords('sets');
+check('confirmed ids leave the queue', queued.length === 1, `${queued.length}`);
+check('the unconfirmed one stays', queued[0].reps === 8 && queued[0].set === 2);
+
+markSynced('sets', [queued[0].id]);
+check('queue empties once all are confirmed', pendingRecords('sets').length === 0);
+
+addSet({ date: '2026-09-07', day: 'A', exercise: 'Lateral Raises', set: 1, reps: 12, weight: 10 });
+const undoTarget = pendingRecords('sets')[0];
+removeSet(undoTarget.id);
+check('an undone set never reaches the Sheet', pendingRecords('sets').length === 0);
+clearAll();
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);
