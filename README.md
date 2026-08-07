@@ -19,6 +19,8 @@ npm run dev
 | `VITE_SHEETS_ID` | The ID in your Sheet URL: `docs.google.com/spreadsheets/d/**THIS**/edit` |
 | `VITE_SHEETS_API_KEY` | Google Cloud API key with the Sheets API enabled |
 | `VITE_SHEETS_TAB` | Tab name holding form responses |
+| `VITE_SYNC_URL` | Apps Script `/exec` URL — optional; without it the app is read-only |
+| `VITE_SYNC_TOKEN` | Must match `SHARED_TOKEN` in `apps-script/Code.gs` |
 
 The Sheet must be shared as **Anyone with the link → Viewer**.
 
@@ -32,6 +34,32 @@ npm run test:refresh # same, but re-fetch the sheet first
 npm run build
 npm run deploy       # GitHub Pages
 ```
+
+## Saving to the Sheet
+
+The app writes through a Google Apps Script web app (`apps-script/Code.gs`),
+which appends to three tabs it owns — `App Log`, `Grappling`, `Bodyweight` —
+and leaves the Form's response tab untouched as the historical archive. Both
+are read back and merged.
+
+To set it up: open the Sheet → **Extensions → Apps Script**, select all and
+replace with `apps-script/Code.gs`, set `SHARED_TOKEN`, then **Deploy → New
+deployment → Web app** with *Execute as: Me* and *Who has access: Anyone*.
+Copy the `/exec` URL into `.env.local` as `VITE_SYNC_URL`, with the same token
+as `VITE_SYNC_TOKEN`.
+
+Two things that catch people out. The script must be pasted at the **top
+level** — if it lands inside the stub `function myFunction() { ... }`, Apps
+Script cannot see `doGet`/`doPost` and the URL returns *Script function not
+found*. And **editing the code does not update a deployment**: publish through
+**Manage deployments → edit → Version: New version**, which keeps the same URL.
+
+Without `VITE_SYNC_URL` the app is read-only — everything logged queues on the
+device and nothing is lost.
+
+Records carry a UUID and the endpoint deduplicates on it, so a retry after a
+lost response cannot double-write. The queue drains on load, on the browser's
+`online` event, and from the banner's **Save now** button.
 
 ### Why the tests don't need the network
 

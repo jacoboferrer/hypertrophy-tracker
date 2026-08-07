@@ -39,11 +39,23 @@ jobs:
           [ -n "$ID" ]  || { echo "::error::Repository secret VITE_SHEETS_ID is missing"; exit 1; }
           [ -n "$KEY" ] || { echo "::error::Repository secret VITE_SHEETS_API_KEY is missing"; exit 1; }
 
+      # VITE_SYNC_* are optional: without them the app is read-only and
+      # anything logged simply queues on the device.
       - run: npm run build
         env:
           VITE_SHEETS_ID: ${{ secrets.VITE_SHEETS_ID }}
           VITE_SHEETS_API_KEY: ${{ secrets.VITE_SHEETS_API_KEY }}
           VITE_SHEETS_TAB: "Respuestas de formulario 1"
+          VITE_SYNC_URL: ${{ secrets.VITE_SYNC_URL }}
+          VITE_SYNC_TOKEN: ${{ secrets.VITE_SYNC_TOKEN }}
+
+      - name: Warn if the write endpoint is not configured
+        env:
+          SYNC: ${{ secrets.VITE_SYNC_URL }}
+        run: |
+          [ -n "$SYNC" ] \
+            && echo "Write endpoint configured — the app can save to the Sheet." \
+            || echo "::warning::VITE_SYNC_URL not set — deploying in read-only mode."
 
       - uses: actions/upload-pages-artifact@v3
         with:
