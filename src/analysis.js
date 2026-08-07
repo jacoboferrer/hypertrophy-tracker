@@ -102,12 +102,18 @@ export function today() {
   return toISODate(new Date());
 }
 
-/** Seven-point moving average of bodyweight entries, oldest first. */
-export function smoothSeries(entries, window = 7) {
-  const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+/**
+ * Trailing moving average, oldest first. `key` picks the measurement, and
+ * entries missing it are skipped — weight and waist are logged together but
+ * either can be left blank.
+ */
+export function smoothSeries(entries, window = 7, key = 'value') {
+  const sorted = [...entries]
+    .filter((e) => typeof e[key] === 'number' && !isNaN(e[key]))
+    .sort((a, b) => a.date.localeCompare(b.date));
   return sorted.map((e, i) => {
     const slice = sorted.slice(Math.max(0, i - window + 1), i + 1);
-    return { date: e.date, value: e.value, smooth: slice.reduce((s, x) => s + x.value, 0) / slice.length };
+    return { date: e.date, value: e[key], smooth: slice.reduce((s, x) => s + x[key], 0) / slice.length };
   });
 }
 

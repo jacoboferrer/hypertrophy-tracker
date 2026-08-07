@@ -47,8 +47,8 @@ const TABS = {
   },
   bodyweight: {
     name: 'Bodyweight',
-    headers: ['id', 'date', 'kg', 'loggedAt'],
-    fields: ['id', 'date', 'value', 'loggedAt'],
+    headers: ['id', 'date', 'kg', 'waist_cm', 'loggedAt'],
+    fields: ['id', 'date', 'value', 'waist', 'loggedAt'],
   },
   notes: {
     name: 'Notes',

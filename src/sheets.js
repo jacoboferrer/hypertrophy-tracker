@@ -156,8 +156,8 @@ function parseAppTabs({ sets = [], grappling = [], bodyweight = [], notes = [] }
       })),
 
     bodyweight: bodyweight
-      .filter((r) => r[0] && r[1] && num(r[2]) !== null)
-      .map((r) => ({ id: r[0], date: r[1], value: num(r[2]), source: 'app' })),
+      .filter((r) => r[0] && r[1] && (num(r[2]) !== null || num(r[3]) !== null))
+      .map((r) => ({ id: r[0], date: r[1], value: num(r[2]), waist: num(r[3]), source: 'app' })),
 
     notes: notes
       .filter((r) => r[0] && r[1] && r[4])
@@ -175,7 +175,7 @@ async function fetchAppTabs() {
   const ranges = [
     `${APP_TABS.sets}!A2:L5000`,
     `${APP_TABS.grappling}!A2:F5000`,
-    `${APP_TABS.bodyweight}!A2:D5000`,
+    `${APP_TABS.bodyweight}!A2:E5000`,
     `${APP_TABS.notes}!A2:F5000`,
   ];
   const query = ranges.map((r) => `ranges=${encodeURIComponent(r)}`).join('&');

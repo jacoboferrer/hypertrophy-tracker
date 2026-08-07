@@ -106,12 +106,18 @@ export function nextDayAfter(day) {
   return i === -1 ? 'A' : DAY_ORDER[(i + 1) % DAY_ORDER.length];
 }
 
+// At ~20% body fat with a fat-free mass index near 17, the constraint is not
+// how much fat is being carried — 13 kg is unremarkable — but how little
+// muscle. That argues for maintenance-to-small-surplus with high protein
+// rather than either a bulk or a cut, and for watching waist alongside weight,
+// since the scale alone cannot say which tissue is being added.
 export const BODY_PARAMS = {
   weight: 65,
   height: 1.74,
   age: 37,
-  proteinTarget: 130,   // 2.0 g/kg
-  calorieTarget: 2600,  // lean-bulk surplus
-  weeklyGainTarget: 0.1, // kg/week — about +4 kg across the course
+  proteinTarget: 130,      // 2.0 g/kg — the lever that matters most here
+  proteinRange: [120, 145],
+  calorieTarget: 2450,     // maintenance to a small surplus
+  weeklyGainBand: [0.05, 0.1],  // kg/week → +2 to +4 kg across the course
   targetSessionsPerWeek: 2.5,
 };

@@ -2,13 +2,13 @@
 //   npm run verify              cached sheet (offline, no network)
 //   npm run verify -- --refresh re-fetch and rewrite the cache
 
-import { PROGRAM, DAY_ORDER, nextDayAfter } from '../src/config.js';
+import { PROGRAM, DAY_ORDER, nextDayAfter, BODY_PARAMS } from '../src/config.js';
 import { canonical, metaFor } from '../src/exercises.js';
 import { BLOCKS, mesocycleState, rotationSpec, PROGRAM_START, TOTAL_PLANNED_SESSIONS } from '../src/mesocycles.js';
 import { prescribe } from '../src/progression.js';
-import { toSessions, byExercise, volumePerRotation } from '../src/analysis.js';
+import { toSessions, byExercise, volumePerRotation, smoothSeries } from '../src/analysis.js';
 import { parseRows } from '../src/sheets.js';
-import { addSet, addSets, pendingRecords, markSynced, clearAll, removeSet, saveNote, noteFor } from '../src/store.js';
+import { addSet, addSets, pendingRecords, markSynced, clearAll, removeSet, saveNote, noteFor, addBodyweight } from '../src/store.js';
 import { sheetValues } from './fixture.mjs';
 import { TYPES as SYNC_TYPES } from '../src/sync.js';
 
@@ -199,6 +199,22 @@ check('re-saving replaces the unsynced draft', pendingRecords('notes').length ==
 saveNote({ date: '2026-08-17', day: 'A', block: 'M0', note: '' });
 check('clearing removes it', noteFor('2026-08-17') === '' && pendingRecords('notes').length === 0);
 check('notes are a synced record type', SYNC_TYPES.includes('notes'));
+clearAll();
+
+// ── 7b. Weight and waist share a record ───────────────────────────────────
+console.log('\nBody measurements');
+clearAll();
+addBodyweight({ date: '2026-08-17', value: 65.2 });
+addBodyweight({ date: '2026-08-17', waist: 80.5 });
+const bw = pendingRecords('bodyweight');
+check('one row per date, not two', bw.length === 1, `${bw.length}`);
+check('adding waist keeps the weight', bw[0].value === 65.2 && bw[0].waist === 80.5,
+  `${bw[0].value} / ${bw[0].waist}`);
+const wSeries = smoothSeries([{ date: '2026-08-17', value: 65.2, waist: 80.5 }, { date: '2026-08-24', value: 65.4 }], 7, 'waist');
+check('the waist series skips entries without one', wSeries.length === 1, `${wSeries.length}`);
+check('the gain target is a corridor, not a line',
+  Array.isArray(BODY_PARAMS.weeklyGainBand) && BODY_PARAMS.weeklyGainBand.length === 2);
+check('calories are maintenance-to-small-surplus', BODY_PARAMS.calorieTarget === 2450, `${BODY_PARAMS.calorieTarget}`);
 clearAll();
 
 // ── 8. Re-entry discount only after real time off ─────────────────────────

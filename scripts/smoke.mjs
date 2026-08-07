@@ -28,8 +28,8 @@ const grappling = [
 // The sheet's bodyweight column has never been filled, so the chart is
 // exercised with synthetic readings until real ones exist.
 const bodyweight = logged.length ? logged : [
-  { date: '2026-07-06', value: 64.8 }, { date: '2026-07-13', value: 65.1 },
-  { date: '2026-07-20', value: 65.0 }, { date: '2026-07-27', value: 65.4 },
+  { date: '2026-07-06', value: 64.8, waist: 81.0 }, { date: '2026-07-13', value: 65.1, waist: 80.8 },
+  { date: '2026-07-20', value: 65.0, waist: 80.9 }, { date: '2026-07-27', value: 65.4, waist: 80.6 },
 ];
 
 let fail = 0;

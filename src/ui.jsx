@@ -183,11 +183,16 @@ export function WeeklyLoad({ weeks }) {
  * Generic line chart. `guide` draws a dashed reference series — used for the
  * bodyweight target slope of +0.1 kg/week.
  */
-export function LineChart({ points, guide, color = 'var(--accent)', height = 170, format = (v) => v.toFixed(1) }) {
+export function LineChart({ points, guide, band, color = 'var(--accent)', height = 170, format = (v) => v.toFixed(1) }) {
   if (!points || points.length === 0) return <div className="empty">No data yet.</div>;
 
   const W = 500, H = height, padL = 44, padB = 26;
-  const all = [...points.map((p) => p.y), ...(guide || []).map((p) => p.y)];
+  const all = [
+    ...points.map((p) => p.y),
+    ...(guide || []).map((p) => p.y),
+    ...(band?.lower || []).map((p) => p.y),
+    ...(band?.upper || []).map((p) => p.y),
+  ];
   const min = Math.min(...all);
   const max = Math.max(...all);
   const span = max - min || 1;
@@ -208,6 +213,19 @@ export function LineChart({ points, guide, color = 'var(--accent)', height = 170
           <text x={padL - 6} y={y(v) + 3.5} fontSize="9.5" textAnchor="end" fill="var(--ink-3)" fontFamily="var(--mono)">{format(v)}</text>
         </g>
       ))}
+      {/* A target corridor rather than a single line — the honest shape of a
+          +0.05 to +0.1 kg/week goal. */}
+      {band?.lower?.length > 1 && band?.upper?.length > 1 && (
+        <>
+          <path
+            d={`M ${band.lower.map((p, i) => `${x(i, band.lower.length)},${y(p.y)}`).join(' L ')} L ${[...band.upper].reverse().map((p, i, arr) => `${x(arr.length - 1 - i, arr.length)},${y(p.y)}`).join(' L ')} Z`}
+            fill="var(--good)" opacity=".12" />
+          {[band.lower, band.upper].map((series, i) => (
+            <polyline key={i} points={line(series)} fill="none" stroke="var(--good)"
+              strokeWidth="1.25" strokeDasharray="4 4" opacity=".65" />
+          ))}
+        </>
+      )}
       {guide?.length > 1 && (
         <polyline points={line(guide)} fill="none" stroke="var(--good)" strokeWidth="1.5" strokeDasharray="4 4" opacity=".8" />
       )}

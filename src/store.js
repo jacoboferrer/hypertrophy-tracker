@@ -93,9 +93,15 @@ export function removeGrappling(id) {
 }
 
 // ── Bodyweight ──────────────────────────────────────────────────────────
-export function addBodyweight({ date, value }) {
+/** Weight and waist are taken together on the same morning, so they share a row. */
+export function addBodyweight({ date, value, waist }) {
+  const previous = state.bodyweight.find((b) => b.date === date && !b.syncedAt);
   const without = state.bodyweight.filter((b) => b.date !== date || b.syncedAt);
-  commit({ ...state, bodyweight: [...without, stamp({ date, value })] });
+  commit({ ...state, bodyweight: [...without, stamp({
+    date,
+    value: value ?? previous?.value ?? null,
+    waist: waist ?? previous?.waist ?? null,
+  })] });
 }
 
 export function removeBodyweight(id) {
