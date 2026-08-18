@@ -72,7 +72,7 @@ export function volumePerRotation(rows, sessionCount) {
 /** Rolling sessions-per-week over a trailing window. */
 export function sessionsPerWeek(sessions, days = 28) {
   if (!sessions.length) return 0;
-  const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+  const cutoff = daysAgo(days);
   const recent = sessions.filter((s) => s.date >= cutoff).length;
   return recent / (days / 7);
 }
@@ -100,6 +100,17 @@ export function toISODate(d) {
 
 export function today() {
   return toISODate(new Date());
+}
+
+/**
+ * A local calendar date n days back. Never derive one from toISOString(): that
+ * is UTC, and east of Greenwich it disagrees with the local date for the first
+ * hours of every morning — which is exactly when a late session gets logged.
+ */
+export function daysAgo(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return toISODate(d);
 }
 
 /**

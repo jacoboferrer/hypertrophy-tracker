@@ -18,9 +18,10 @@ await build({
   define: { 'import.meta.env': '{}' },
 });
 
-const { run, runEmpty } = await import(out);
+const { run, runEmpty, runComplete } = await import(out);
 
-const day = (offset) => new Date(Date.now() - offset * 86400000).toISOString().slice(0, 10);
+const { daysAgo } = await import('../src/analysis.js');
+const day = (offset) => daysAgo(offset);
 const grappling = [
   { id: 'g1', date: day(1), minutes: 90, hardness: 3 },
   { id: 'g2', date: day(4), minutes: 90, hardness: 2 },
@@ -46,6 +47,16 @@ const report = (label, { results, meso, day: nextDay, sessions }) => {
 try {
   report(`Real log — ${rows.length} sets · ${source}`, run(rows, grappling, bodyweight));
   report('Empty store — brand new install', runEmpty());
+
+  const done = runComplete();
+  console.log('\nCompleted session');
+  for (const [label, ok] of [
+    ['completion banner renders', done.complete],
+    ['names the next day in rotation', done.nextDay],
+  ]) {
+    if (!ok) fail++;
+    console.log(`  ${ok ? '✓' : '✗'} ${label}`);
+  }
 } catch (err) {
   console.error('\n✗ render threw:', err.stack);
   fail++;

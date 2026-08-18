@@ -6,7 +6,7 @@ import { PROGRAM, DAY_ORDER, nextDayAfter, BODY_PARAMS } from '../src/config.js'
 import { canonical, metaFor } from '../src/exercises.js';
 import { BLOCKS, mesocycleState, rotationSpec, PROGRAM_START, TOTAL_PLANNED_SESSIONS } from '../src/mesocycles.js';
 import { prescribe } from '../src/progression.js';
-import { toSessions, byExercise, volumePerRotation, smoothSeries } from '../src/analysis.js';
+import { toSessions, byExercise, volumePerRotation, smoothSeries, daysAgo } from '../src/analysis.js';
 import { parseRows } from '../src/sheets.js';
 import { addSet, addSets, pendingRecords, markSynced, clearAll, removeSet, saveNote, noteFor, addBodyweight } from '../src/store.js';
 import { sheetValues } from './fixture.mjs';
@@ -60,7 +60,7 @@ check('6 sessions → M1, session 1', at(6).block.id === 'M1' && at(6).sessionNu
 check('M1 session 13 is the deload', at(6 + 12).spec.isDeload, JSON.stringify(at(18).spec));
 check('M1 session 12 is not a deload', !at(6 + 11).spec.isDeload);
 check('19 sessions → M2', at(19).block.id === 'M2');
-check('historic sets before 7 Sep do not advance the plan',
+check(`historic sets before ${PROGRAM_START} do not advance the plan`,
   mesocycleState(sessions.map((s) => s.date)).block.id === 'M0');
 check('RIR tightens 3 → 2 → 1.5 → 0.5 across rotations',
   [0, 3, 6, 9].map((i) => rotationSpec(BLOCKS[1], i).rir).join(',') === '3,2,1.5,0.5');
@@ -222,7 +222,7 @@ console.log('\nRe-entry discount');
 const m0 = BLOCKS[0];
 const entrySpec = rotationSpec(m0, 0);
 const squat = PROGRAM.A.exercises[0];
-const iso = (daysAgo) => new Date(Date.now() - daysAgo * 86400000).toISOString().slice(0, 10);
+const iso = (n) => daysAgo(n);
 
 const stale = { 'Barbell Back Squat': [1, 2, 3].map((n) => ({ date: iso(80), exercise: 'Barbell Back Squat', set: n, reps: 8, weight: 50 })) };
 const fresh = { 'Barbell Back Squat': [1, 2, 3].map((n) => ({ date: iso(4), exercise: 'Barbell Back Squat', set: n, reps: 8, weight: 50 })) };

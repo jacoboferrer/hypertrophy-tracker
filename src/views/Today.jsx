@@ -7,10 +7,10 @@
 //
 
 import { useState, useEffect } from 'react';
-import { PROGRAM } from '../config.js';
+import { PROGRAM, nextDayAfter } from '../config.js';
 import { prescribe, STATUS_STYLE } from '../progression.js';
 import { setBonus } from '../mesocycles.js';
-import { today as todayIso } from '../analysis.js';
+import { today as todayIso, daysAgo } from '../analysis.js';
 import { addSet, removeSet, addGrappling, saveNote, noteFor } from '../store.js';
 import { Pill, Track } from '../ui.jsx';
 
@@ -214,29 +214,60 @@ export default function Today({ meso, day, history, data, grappling, lastSession
   }
   for (const list of Object.values(byExerciseToday)) list.sort((a, b) => a.set - b.set);
 
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const yesterday = daysAgo(1);
   const recentMat = grappling.find((g) => g.date === iso || g.date === yesterday);
   const legDay = day === 'A' || day === 'B';
 
-  const coreCount = plan.exercises.filter((e) => !e.optional).length;
-  const doneCount = plan.exercises.filter((e) => !e.optional && byExerciseToday[e.name]?.length).length;
+  // "Done" means at least one set — the same standard the session design uses,
+  // where leaving after exercise two still counts as a session.
+  const core = plan.exercises.filter((e) => !e.optional);
+  const coreCount = core.length;
+  const doneCount = core.filter((e) => byExerciseToday[e.name]?.length).length;
+  const complete = coreCount > 0 && doneCount === coreCount;
+  const setsToday = loggedToday.length;
 
   return (
     <div className="page stack">
       <BlockHeader meso={meso} />
 
-      <div className="day-banner">
-        <div className="day-badge" style={{ background: plan.colorLight, color: plan.color }}>{day}</div>
+      <div className={`day-banner${complete ? ' complete' : ''}`}>
+        <div className="day-badge" style={complete
+          ? { background: 'var(--good)', color: '#fff' }
+          : { background: plan.colorLight, color: plan.color }}>
+          {complete ? '✓' : day}
+        </div>
         <div className="grow">
-          <div style={{ fontWeight: 600, fontSize: 15.5 }}>{plan.name.replace(/^Day . — /, '')}</div>
-          <div className="muted" style={{ marginTop: 2 }}>
-            {lastSessionDate
-              ? `Next in rotation after ${lastSessionDate}`
-              : 'First session of the plan'}
-            {doneCount > 0 && ` · ${doneCount}/${coreCount} done`}
+          <div style={{ fontWeight: 600, fontSize: 15.5 }}>
+            {complete ? `Day ${day} complete` : plan.name.replace(/^Day . — /, '')}
           </div>
+          <div className="muted" style={{ marginTop: 2 }}>
+            {complete
+              ? `${coreCount} of ${coreCount} exercises · ${setsToday} sets · Day ${nextDayAfter(day)} next, from tomorrow`
+              : <>
+                  {lastSessionDate
+                    ? `Next in rotation after ${lastSessionDate}`
+                    : 'First session of the plan'}
+                  {doneCount > 0 && ` · ${doneCount} of ${coreCount} exercises`}
+                </>}
+          </div>
+          {doneCount > 0 && !complete && (
+            <div style={{ marginTop: 8 }}>
+              <Track value={doneCount} max={coreCount} color="var(--good)" />
+            </div>
+          )}
         </div>
       </div>
+
+      {complete && (
+        <div className="card" style={{ background: 'var(--good-bg)', borderColor: 'var(--good-line)' }}>
+          <div className="dim" style={{ color: 'var(--ink)' }}>
+            Nothing to mark off — a session is its date. This one counts as soon as the day turns,
+            and tomorrow this screen opens on <b>Day {nextDayAfter(day)}</b> with
+            <b> {meso.block.id} · session {meso.sessionNumber + 1} of {meso.block.sessions}</b>.
+            Anything you add below still lands on today.
+          </div>
+        </div>
+      )}
 
       {recentMat && legDay && (
         <div className="card" style={{ background: 'var(--warn-bg)', borderColor: 'var(--warn-line)' }}>
