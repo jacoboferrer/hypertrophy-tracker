@@ -112,6 +112,9 @@ function doPost(request) {
     const records = body.records || [];
     if (!records.length) return reply({ ok: true, written: 0, ids: [] });
 
+    // An undo after the set has already reached the Sheet.
+    if (type === 'deletions') return handleDeletions(records);
+
     const { sheet, config } = sheetFor(type);
     const seen = existingIds(sheet);
 
@@ -143,6 +146,45 @@ function doPost(request) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Remove rows the app has undone. Each record names the tab and the id of the
+ * row to drop. Rows are deleted bottom-up so earlier indices stay valid.
+ */
+function handleDeletions(records) {
+  const byTab = {};
+  for (let i = 0; i < records.length; i++) {
+    const r = records[i];
+    if (!r.id || !r.recordType || !r.targetId) continue;
+    if (!byTab[r.recordType]) byTab[r.recordType] = [];
+    byTab[r.recordType].push(r);
+  }
+
+  const accepted = [];
+  let removed = 0;
+
+  for (const key in byTab) {
+    const batch = byTab[key];
+    const targets = {};
+    for (let i = 0; i < batch.length; i++) targets[batch[i].targetId] = true;
+
+    const sheet = sheetFor(key).sheet;
+    const last = sheet.getLastRow();
+    if (last >= 2) {
+      const ids = sheet.getRange(2, 1, last - 1, 1).getValues();
+      for (let row = ids.length - 1; row >= 0; row--) {
+        if (targets[String(ids[row][0]).trim()]) {
+          sheet.deleteRow(row + 2);
+          removed++;
+        }
+      }
+    }
+    // Acknowledge either way: a row that is already gone is the desired state.
+    for (let i = 0; i < batch.length; i++) accepted.push(batch[i].id);
+  }
+
+  return reply({ ok: true, written: removed, ids: accepted });
 }
 
 /** Health check — open the /exec URL in a browser to confirm the deployment. */

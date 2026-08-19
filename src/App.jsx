@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { nextDayAfter, SYNC_CONFIG } from './config.js';
 import { mesocycleState } from './mesocycles.js';
 import { fetchFromGoogleSheets } from './sheets.js';
-import { useStore, pruneSynced } from './store.js';
+import { useStore, pruneSynced, deletedIds } from './store.js';
 import { syncNow, countPending } from './sync.js';
 import { toSessions, byExercise, weeklyLoad, today as todayIso } from './analysis.js';
 import Today from './views/Today.jsx';
@@ -93,9 +93,15 @@ export default function App() {
 
   useEffect(() => { pruneSynced(remoteIds); }, [remoteIds]);
 
+  // An undone set may still be sitting in the Sheet until the deletion syncs.
+  const removed = useMemo(() => deletedIds(local), [local]);
+
   const data = useMemo(
-    () => [...remote.sets, ...local.sets.filter((s) => !remoteIds.sets.has(s.id))],
-    [remote.sets, local.sets, remoteIds],
+    () => [
+      ...remote.sets.filter((s) => !removed.has(s.id)),
+      ...local.sets.filter((s) => !remoteIds.sets.has(s.id) && !removed.has(s.id)),
+    ],
+    [remote.sets, local.sets, remoteIds, removed],
   );
 
   const grappling = useMemo(() => {

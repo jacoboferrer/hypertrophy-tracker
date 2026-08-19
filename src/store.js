@@ -13,7 +13,7 @@ import { useSyncExternalStore } from 'react';
 
 const KEY = 'hypertrophy-tracker/v1';
 
-const EMPTY = { sets: [], grappling: [], bodyweight: [], notes: [] };
+const EMPTY = { sets: [], grappling: [], bodyweight: [], notes: [], deletions: [] };
 
 // Absent under Node, where the test scripts exercise this module directly.
 // Declared before load() runs — a const referenced from a hoisted function is
@@ -78,8 +78,23 @@ export function addSets(entries) {
   commit({ ...state, sets: [...state.sets, ...entries.map(stamp)] });
 }
 
+/**
+ * Undo a set. Once it has reached the Sheet there is nothing local left to
+ * drop — the copy was pruned on sync — so the removal has to be queued and
+ * pushed, and the id filtered out of the remote read until it lands.
+ */
 export function removeSet(id) {
-  commit({ ...state, sets: state.sets.filter((s) => s.id !== id) });
+  const local = state.sets.find((s) => s.id === id);
+  const next = { ...state, sets: state.sets.filter((s) => s.id !== id) };
+  if (!local || local.syncedAt) {
+    next.deletions = [...state.deletions, stamp({ recordType: 'sets', targetId: id })];
+  }
+  commit(next);
+}
+
+/** Ids removed after they reached the Sheet, so the merge can hide them. */
+export function deletedIds(snapshot = state) {
+  return new Set((snapshot.deletions || []).map((d) => d.targetId));
 }
 
 // ── Grappling ───────────────────────────────────────────────────────────
@@ -151,6 +166,13 @@ export function pruneSynced(remoteIdsByType) {
     const kept = state[type].filter((r) => !(r.syncedAt && ids.has(r.id)));
     if (kept.length !== state[type].length) { next[type] = kept; changed = true; }
   }
+  // A confirmed deletion whose row is gone from the Sheet has done its job.
+  const liveDeletions = state.deletions.filter(
+    (d) => !(d.syncedAt && !remoteIdsByType[d.recordType]?.has(d.targetId)),
+  );
+  if (liveDeletions.length !== state.deletions.length) {
+    next.deletions = liveDeletions; changed = true;
+  }
   if (changed) commit(next);
 }
 
@@ -166,6 +188,7 @@ export function importJSON(text) {
     grappling: parsed.grappling || [],
     bodyweight: parsed.bodyweight || [],
     notes: parsed.notes || [],
+    deletions: parsed.deletions || [],
   });
 }
 

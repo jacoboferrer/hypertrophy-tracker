@@ -11,7 +11,7 @@
 import { SYNC_CONFIG } from './config.js';
 import { pendingRecords, markSynced } from './store.js';
 
-export const TYPES = ['sets', 'grappling', 'bodyweight', 'notes'];
+export const TYPES = ['sets', 'grappling', 'bodyweight', 'notes', 'deletions'];
 
 /**
  * POST one batch. Sent as text/plain deliberately: that keeps it a "simple"
@@ -51,6 +51,8 @@ export async function syncNow() {
   }
 
   let written = 0;
+  let firstError = null;
+
   for (const type of TYPES) {
     const records = pendingRecords(type);
     if (!records.length) continue;
@@ -59,11 +61,15 @@ export async function syncNow() {
       markSynced(type, result.ids || []);
       written += result.written || 0;
     } catch (err) {
-      return { ok: false, reason: err.message, written, pending: countPending() };
+      // Carry on: a record type the endpoint does not yet understand should
+      // not strand the ones it does.
+      firstError = firstError || err.message;
     }
   }
 
-  return { ok: true, written, pending: countPending() };
+  return firstError
+    ? { ok: false, reason: firstError, written, pending: countPending() }
+    : { ok: true, written, pending: countPending() };
 }
 
 /** Pass the store snapshot to make this recompute on render; omit to read live state. */

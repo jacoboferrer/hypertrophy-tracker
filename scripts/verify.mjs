@@ -8,7 +8,7 @@ import { BLOCKS, mesocycleState, rotationSpec, PROGRAM_START, TOTAL_PLANNED_SESS
 import { prescribe } from '../src/progression.js';
 import { toSessions, byExercise, volumePerRotation, smoothSeries, daysAgo } from '../src/analysis.js';
 import { parseRows } from '../src/sheets.js';
-import { addSet, addSets, pendingRecords, markSynced, clearAll, removeSet, saveNote, noteFor, addBodyweight } from '../src/store.js';
+import { addSet, addSets, pendingRecords, markSynced, clearAll, removeSet, saveNote, noteFor, addBodyweight, deletedIds } from '../src/store.js';
 import { sheetValues } from './fixture.mjs';
 import { TYPES as SYNC_TYPES } from '../src/sync.js';
 
@@ -199,6 +199,27 @@ check('re-saving replaces the unsynced draft', pendingRecords('notes').length ==
 saveNote({ date: '2026-08-17', day: 'A', block: 'M0', note: '' });
 check('clearing removes it', noteFor('2026-08-17') === '' && pendingRecords('notes').length === 0);
 check('notes are a synced record type', SYNC_TYPES.includes('notes'));
+clearAll();
+
+// ── 7a. Undoing a set that already reached the Sheet ──────────────────────
+console.log('\nUndo');
+clearAll();
+addSet({ date: '2026-08-19', day: 'C', exercise: 'Leg Press', set: 1, reps: 12, weight: 60 });
+let pendingSet = pendingRecords('sets')[0];
+removeSet(pendingSet.id);
+check('an unsynced set just disappears', pendingRecords('sets').length === 0);
+check('with nothing queued for the Sheet', pendingRecords('deletions').length === 0);
+
+addSet({ date: '2026-08-19', day: 'C', exercise: 'Leg Press', set: 1, reps: 12, weight: 60 });
+pendingSet = pendingRecords('sets')[0];
+markSynced('sets', [pendingSet.id]);          // the Sheet has it now
+removeSet(pendingSet.id);
+const queuedDeletions = pendingRecords('deletions');
+check('undoing a synced set queues a deletion', queuedDeletions.length === 1, `${queuedDeletions.length}`);
+check('the deletion names the tab and the row',
+  queuedDeletions[0].recordType === 'sets' && queuedDeletions[0].targetId === pendingSet.id);
+check('and the id is hidden from the merge', deletedIds().has(pendingSet.id));
+check('deletions are a synced record type', SYNC_TYPES.includes('deletions'));
 clearAll();
 
 // ── 7b. Weight and waist share a record ───────────────────────────────────

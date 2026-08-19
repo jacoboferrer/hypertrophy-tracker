@@ -11,7 +11,7 @@ import { PROGRAM, nextDayAfter } from '../config.js';
 import { prescribe, STATUS_STYLE } from '../progression.js';
 import { setBonus } from '../mesocycles.js';
 import { today as todayIso, daysAgo } from '../analysis.js';
-import { addSet, removeSet, addGrappling, saveNote, noteFor } from '../store.js';
+import { addSet, addSets, removeSet, addGrappling, saveNote, noteFor } from '../store.js';
 import { Pill, Track } from '../ui.jsx';
 
 function BlockHeader({ meso }) {
@@ -122,6 +122,35 @@ function SetLogger({ exercise, prescription, loggedSets, day, block, spec, onLog
   );
 }
 
+function AccessoryLogger({ exercise, prescription, loggedSets, day, block, spec, onLogged }) {
+  const iso = todayIso();
+  const done = loggedSets.length > 0;
+
+  const mark = () => {
+    addSets(Array.from({ length: prescription.sets }, (_, i) => ({
+      date: iso, day, exercise: exercise.name, set: i + 1,
+      reps: prescription.lo, weight: 0, rir: null,
+      block: block.id, rotation: spec.rotation,
+    })));
+    onLogged?.(`${exercise.name} — done`);
+  };
+
+  const clear = () => {
+    loggedSets.filter((s) => s.id).forEach((s) => removeSet(s.id));
+    onLogged?.(`${exercise.name} — cleared`);
+  };
+
+  return (
+    <div className="sets">
+      <button className={`btn${done ? '' : ' primary'}`}
+        onClick={done ? clear : mark}
+        style={done ? { background: 'var(--good-bg)', color: 'var(--good)' } : undefined}>
+        {done ? `✓ Done — ${loggedSets.length} × ${prescription.lo}. Tap to clear` : `Mark ${prescription.sets} × ${prescription.lo} done`}
+      </button>
+    </div>
+  );
+}
+
 function ExerciseCard({ exercise, index, history, block, spec, loggedSets, day, onLogged }) {
   const p = prescribe({ exercise, exerciseIndex: index, history, block, spec });
   const style = STATUS_STYLE[p.status] || STATUS_STYLE.hold;
@@ -150,7 +179,10 @@ function ExerciseCard({ exercise, index, history, block, spec, loggedSets, day, 
         {p.message}
       </div>
 
-      {!p.untracked && (
+      {p.untracked ? (
+        <AccessoryLogger exercise={exercise} prescription={p} loggedSets={loggedSets}
+          day={day} block={block} spec={spec} onLogged={onLogged} />
+      ) : (
         <SetLogger exercise={exercise} prescription={p} loggedSets={loggedSets}
           day={day} block={block} spec={spec} onLogged={onLogged} />
       )}
@@ -243,12 +275,11 @@ export default function Today({ meso, day, history, data, grappling, lastSession
           <div className="muted" style={{ marginTop: 2 }}>
             {complete
               ? `${coreCount} of ${coreCount} exercises · ${setsToday} sets · Day ${nextDayAfter(day)} next, from tomorrow`
-              : <>
-                  {lastSessionDate
+              : doneCount > 0
+                ? `${doneCount} of ${coreCount} exercises · already counts as a session`
+                : (lastSessionDate
                     ? `Next in rotation after ${lastSessionDate}`
-                    : 'First session of the plan'}
-                  {doneCount > 0 && ` · ${doneCount} of ${coreCount} exercises`}
-                </>}
+                    : 'First session of the plan')}
           </div>
           {doneCount > 0 && !complete && (
             <div style={{ marginTop: 8 }}>
