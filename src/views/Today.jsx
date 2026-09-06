@@ -41,7 +41,12 @@ function BlockHeader({ meso }) {
 
 function SetLogger({ exercise, prescription, loggedSets, day, block, spec, onLogged }) {
   const [drafts, setDrafts] = useState({});
+  const [extraSlots, setExtraSlots] = useState(0);
   const iso = todayIso();
+
+  // Rows beyond the prescription: either already logged, or opened by hand.
+  const extraLogged = Math.max(0, loggedSets.length - prescription.sets);
+  const rowCount = prescription.sets + Math.max(extraSlots, extraLogged);
 
   const draftFor = (i) => drafts[i] ?? {
     reps: prescription.lo,
@@ -81,13 +86,16 @@ function SetLogger({ exercise, prescription, loggedSets, day, block, spec, onLog
         <span /><span>Reps</span><span>kg</span><span>RIR</span><span />
       </div>
       <div className="sets">
-        {Array.from({ length: prescription.sets }, (_, i) => {
+        {Array.from({ length: rowCount }, (_, i) => {
           const done = loggedSets[i];
           const draft = draftFor(i);
           const undoable = !!done?.id;
+          const extra = i >= prescription.sets;
           return (
-            <div className="set-row" key={i}>
-              <div className="n">{i + 1}</div>
+            <div className={`set-row${extra ? ' extra' : ''}`} key={i}>
+              <div className="n" title={extra ? 'Extra set — bonus volume, not part of the progression rule' : undefined}>
+                {i + 1}{extra && '+'}
+              </div>
               <input type="number" inputMode="numeric" aria-label={`Set ${i + 1} reps`}
                 value={done ? done.reps : draft.reps}
                 disabled={!!done}
@@ -113,11 +121,15 @@ function SetLogger({ exercise, prescription, loggedSets, day, block, spec, onLog
           );
         })}
       </div>
-      {anyLogged && (
-        <div className="muted" style={{ padding: '0 var(--pad) 12px', marginTop: -4 }}>
-          Tap ✓ to undo a set.
-        </div>
-      )}
+      <div className="row" style={{ padding: '0 var(--pad) 12px', gap: 10, flexWrap: 'wrap' }}>
+        <button className="btn small ghost" onClick={() => setExtraSlots((n) => n + 1)}>
+          + Add a set
+        </button>
+        <span className="muted">
+          {anyLogged && 'Tap ✓ to undo. '}
+          {rowCount > prescription.sets && 'Extra sets count as volume, never against progression.'}
+        </span>
+      </div>
     </>
   );
 }
@@ -189,7 +201,8 @@ function ExerciseCard({ exercise, index, history, block, spec, loggedSets, day, 
 
       {p.lastSummary && (
         <div className="ex-last">
-          Last {p.lastSummary.date} · {p.lastSummary.sets} sets @ {p.lastSummary.weight} kg
+          Last {p.lastSummary.date} · {p.lastSummary.sets} sets
+          {p.lastSummary.extras > 0 && ` (${p.lastSummary.extras} extra)`} @ {p.lastSummary.weight} kg
           {' · '}{p.lastSummary.minReps === p.lastSummary.maxReps
             ? `${p.lastSummary.maxReps} reps`
             : `${p.lastSummary.minReps}–${p.lastSummary.maxReps} reps`}

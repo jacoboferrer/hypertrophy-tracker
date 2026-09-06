@@ -164,6 +164,9 @@ h3 { font-size: 16px; font-weight: 600; }
 .sets { display: flex; flex-direction: column; gap: 6px; padding: 0 var(--pad) 14px; }
 .set-row { display: grid; grid-template-columns: 20px 1fr 1fr 58px auto; gap: 6px; align-items: center; }
 .set-row .n { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+/* Beyond the prescription — bonus volume, marked so it reads as deliberate. */
+.set-row.extra .n { color: var(--info); font-weight: 700; }
+.set-row.extra input { border-style: dashed; }
 .set-row input {
   width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--rule);
   border-radius: 8px; background: var(--bg); font-family: var(--mono); font-size: 15px;

@@ -86,12 +86,24 @@ export function prescribe({ exercise, exerciseIndex, history, block, spec }) {
       message: `No history — pick a load you can hold for ${hi} reps at RIR ${spec.rir}` };
   }
 
-  const top = topSet(last.sets);
-  const minReps = Math.min(...last.sets.map((s) => s.reps));
-  const enoughSets = last.sets.length >= Math.min(sets, exercise.sets);
+  // Only the plan's own sets decide whether load goes up. Anything logged
+  // beyond them is bonus volume — a hard fourth set on a good day must never
+  // cancel an increase the prescribed three had already earned. The window is
+  // the exercise's base set count, which is stable across the block ramp.
+  const ordered = [...last.sets].sort((a, b) => (a.set || 0) - (b.set || 0));
+  const window = Math.max(1, Math.min(exercise.sets, ordered.length));
+  const judged = ordered.slice(0, window);
+  const extras = ordered.length - judged.length;
+
+  const top = topSet(judged);
+  const minReps = Math.min(...judged.map((s) => s.reps));
+  const enoughSets = judged.length >= Math.min(sets, exercise.sets);
   const clearedAllSets = minReps >= hi && enoughSets;
   const round = (w) => roundToIncrement(w, meta.increment);
-  const lastSummary = { date: last.date, sets: last.sets.length, weight: top.weight, minReps, maxReps: Math.max(...last.sets.map((s) => s.reps)) };
+  const lastSummary = {
+    date: last.date, sets: ordered.length, extras, weight: top.weight, minReps,
+    maxReps: Math.max(...judged.map((s) => s.reps)),
+  };
 
   if (spec.isDeload) {
     return { ...base, weight: round(top.weight * 0.6), status: 'deload', lastSummary,
@@ -119,13 +131,14 @@ export function prescribe({ exercise, exerciseIndex, history, block, spec }) {
 
   if (clearedAllSets) {
     return { ...base, weight: round(top.weight + meta.increment), status: 'increase', lastSummary,
-      message: `All ${last.sets.length} sets cleared ${hi} reps — up ${meta.increment} kg, back to ${lo}` };
+      message: `All ${judged.length} prescribed sets cleared ${hi} reps — up ${meta.increment} kg, back to ${lo}`
+        + (extras ? ` (${extras} extra ${extras === 1 ? 'set' : 'sets'} not counted against you)` : '') };
   }
 
   return { ...base, weight: round(top.weight), status: 'hold', lastSummary,
     message: enoughSets
       ? `Hold ${round(top.weight)} kg until every set reaches ${hi} (lowest was ${minReps})`
-      : `Hold ${round(top.weight)} kg — only ${last.sets.length} working ${last.sets.length === 1 ? 'set' : 'sets'} logged last time` };
+      : `Hold ${round(top.weight)} kg — only ${judged.length} working ${judged.length === 1 ? 'set' : 'sets'} logged last time` };
 }
 
 export const STATUS_STYLE = {

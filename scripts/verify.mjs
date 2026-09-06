@@ -129,6 +129,28 @@ const deload = prescribe({ exercise: benchEx, exerciseIndex: 1, history: allClea
   block: byId.M1, spec: rotationSpec(byId.M1, 12) });
 check('deload drops to 60% and halves the sets', deload.weight === 32.5 && deload.sets <= 2, `${deload.weight}kg × ${deload.sets}`);
 
+// ── 4b. Extra sets are bonus volume, never a penalty ──────────────────────
+console.log('\nExtra sets');
+const squatEx = PROGRAM.A.exercises[0];
+const squatHist = (reps) => ({ 'Barbell Back Squat': reps.map((r, i) => ({
+  date: '2026-09-04', exercise: 'Barbell Back Squat', set: i + 1, reps: r, weight: 55 })) });
+const judge = (reps) => prescribe({ exercise: squatEx, exerciseIndex: 0,
+  history: squatHist(reps), block: byId.M2, spec: rotationSpec(byId.M2, 4) });
+
+const clean = judge([8, 8, 8]);
+const withExtra = judge([8, 8, 8, 5]);
+const withTwoExtras = judge([8, 8, 8, 6, 5]);
+const shortPrescribed = judge([8, 6, 8]);
+
+check('three prescribed sets at the top earn the increase', clean.status === 'increase');
+check('a hard fourth set does not cancel it',
+  withExtra.status === 'increase' && withExtra.weight === clean.weight,
+  `${withExtra.status} ${withExtra.weight}`);
+check('nor do two extras', withTwoExtras.status === 'increase');
+check('extras are counted and reported', withTwoExtras.lastSummary.extras === 2, `${withTwoExtras.lastSummary.extras}`);
+check('a short PRESCRIBED set still blocks it', shortPrescribed.status === 'hold', shortPrescribed.status);
+check('extras still count as logged volume', withTwoExtras.lastSummary.sets === 5, `${withTwoExtras.lastSummary.sets}`);
+
 // ── 5. Volume attribution ─────────────────────────────────────────────────
 console.log('\nVolume');
 const spring = sessions.filter((s) => s.date >= '2026-04-20');
