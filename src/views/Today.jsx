@@ -183,9 +183,8 @@ function ExerciseCard({ exercise, index, history, block, spec, loggedSets, day, 
         </div>
         <div className="ex-target">
           {p.untracked ? '—' : p.weight !== null ? `${p.weight} kg` : '?'}
-          <small title={`rep range ${p.repRange}`}>
-            {p.sets} × {p.targetReps} @ RIR {p.rir}
-          </small>
+          <small>{p.sets} × {p.targetReps} @ RIR {p.rir}</small>
+          {p.lo !== p.hi && <small className="range">range {p.repRange}</small>}
         </div>
       </div>
 
