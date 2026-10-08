@@ -49,7 +49,7 @@ function SetLogger({ exercise, prescription, loggedSets, day, block, spec, onLog
   const rowCount = prescription.sets + Math.max(extraSlots, extraLogged);
 
   const draftFor = (i) => drafts[i] ?? {
-    reps: prescription.lo,
+    reps: prescription.targetReps ?? prescription.lo,
     weight: prescription.weight ?? '',
     rir: Math.round(prescription.rir),   // actual, pre-filled with the target
   };
@@ -141,7 +141,7 @@ function AccessoryLogger({ exercise, prescription, loggedSets, day, block, spec,
   const mark = () => {
     addSets(Array.from({ length: prescription.sets }, (_, i) => ({
       date: iso, day, exercise: exercise.name, set: i + 1,
-      reps: prescription.lo, weight: 0, rir: null,
+      reps: prescription.targetReps ?? prescription.lo, weight: 0, rir: null,
       block: block.id, rotation: spec.rotation,
     })));
     onLogged?.(`${exercise.name} — done`);
@@ -157,7 +157,7 @@ function AccessoryLogger({ exercise, prescription, loggedSets, day, block, spec,
       <button className={`btn${done ? '' : ' primary'}`}
         onClick={done ? clear : mark}
         style={done ? { background: 'var(--good-bg)', color: 'var(--good)' } : undefined}>
-        {done ? `✓ Done — ${loggedSets.length} × ${prescription.lo}. Tap to clear` : `Mark ${prescription.sets} × ${prescription.lo} done`}
+        {done ? `✓ Done — ${loggedSets.length} × ${prescription.targetReps}. Tap to clear` : `Mark ${prescription.sets} × ${prescription.targetReps} done`}
       </button>
     </div>
   );
@@ -183,7 +183,9 @@ function ExerciseCard({ exercise, index, history, block, spec, loggedSets, day, 
         </div>
         <div className="ex-target">
           {p.untracked ? '—' : p.weight !== null ? `${p.weight} kg` : '?'}
-          <small>{p.sets} × {p.repRange} @ RIR {p.rir}</small>
+          <small title={`rep range ${p.repRange}`}>
+            {p.sets} × {p.targetReps} @ RIR {p.rir}
+          </small>
         </div>
       </div>
 
@@ -203,6 +205,7 @@ function ExerciseCard({ exercise, index, history, block, spec, loggedSets, day, 
         <div className="ex-last">
           Last {p.lastSummary.date} · {p.lastSummary.sets} sets
           {p.lastSummary.extras > 0 && ` (${p.lastSummary.extras} extra)`} @ {p.lastSummary.weight} kg
+          {p.lastSummary.floors?.length > 1 && ` · floor ${p.lastSummary.floors.join(' → ')}`}
           {' · '}{p.lastSummary.minReps === p.lastSummary.maxReps
             ? `${p.lastSummary.maxReps} reps`
             : `${p.lastSummary.minReps}–${p.lastSummary.maxReps} reps`}

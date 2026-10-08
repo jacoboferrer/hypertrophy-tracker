@@ -151,6 +151,57 @@ check('extras are counted and reported', withTwoExtras.lastSummary.extras === 2,
 check('a short PRESCRIBED set still blocks it', shortPrescribed.status === 'hold', shortPrescribed.status);
 check('extras still count as logged volume', withTwoExtras.lastSummary.sets === 5, `${withTwoExtras.lastSummary.sets}`);
 
+// ── 4c. The rep ladder ────────────────────────────────────────────────────
+console.log('\nRep ladder');
+const ladderSpec = rotationSpec(byId.M2, 4);
+const sq = PROGRAM.A.exercises[0];                 // 3 × 6-8, 2.5 kg steps
+const ladderHist = (sessions) => ({ 'Barbell Back Squat': sessions.flatMap(([date, sets]) =>
+  sets.map(([w, r], i) => ({ date, exercise: 'Barbell Back Squat', set: i + 1, reps: r, weight: w }))) });
+const ladder = (sessions) => prescribe({ exercise: sq, exerciseIndex: 0,
+  history: ladderHist(sessions), block: byId.M2, spec: ladderSpec });
+
+const floor6 = ladder([['2026-10-02', [[50, 6], [50, 6], [50, 6]]]]);
+check('a full session at the floor asks for floor + 1', floor6.targetReps === 7 && floor6.status === 'hold',
+  `${floor6.status} × ${floor6.targetReps}`);
+
+const floor7 = ladder([['2026-10-02', [[50, 6], [50, 6], [50, 6]]], ['2026-10-05', [[50, 7], [50, 7], [50, 7]]]]);
+check('and climbs again the next session', floor7.targetReps === 8, `${floor7.targetReps}`);
+
+const topped = ladder([['2026-10-05', [[50, 8], [50, 8], [50, 8]]]]);
+check('clearing the top adds load and restarts at the bottom',
+  topped.status === 'increase' && topped.weight === 52.5 && topped.targetReps === 6,
+  `${topped.status} ${topped.weight} × ${topped.targetReps}`);
+
+check('the ladder never exceeds the rep range', ladder([['2026-10-05', [[50, 7], [50, 7], [50, 7]]]]).targetReps === 8);
+
+// The caveat: a load increase must not inherit a target nobody earned.
+const cutShort = ladder([['2026-10-02', [[50, 8], [50, 8], [50, 8]]], ['2026-10-05', [[52.5, 6], [52.5, 6]]]]);
+check('a session cut short does NOT advance the target',
+  cutShort.status === 'hold' && cutShort.weight === 52.5 && cutShort.targetReps === 6,
+  `${cutShort.status} ${cutShort.weight} × ${cutShort.targetReps}`);
+check('and says what is needed to move it', /full sets at this load/.test(cutShort.message), cutShort.message);
+
+const thenFull = ladder([['2026-10-02', [[50, 8], [50, 8], [50, 8]]],
+  ['2026-10-05', [[52.5, 6], [52.5, 6]]], ['2026-10-08', [[52.5, 6], [52.5, 6], [52.5, 6]]]]);
+check('a full session at the new load then starts the ladder', thenFull.targetReps === 7, `${thenFull.targetReps}`);
+
+// The other caveat: a heavier bonus set must not become the working load.
+const bonusHeavier = ladder([['2026-10-05', [[50, 8], [50, 8], [50, 8], [52.5, 5]]]]);
+check('a heavier extra set does not become the working load',
+  bonusHeavier.status === 'increase' && bonusHeavier.weight === 52.5 && bonusHeavier.lastSummary.weight === 50,
+  `judged ${bonusHeavier.lastSummary.weight} kg → ${bonusHeavier.weight} kg`);
+
+const dropped = ladder([['2026-10-02', [[50, 7], [50, 7], [50, 7]]], ['2026-10-05', [[50, 8], [50, 8], [45, 8]]]]);
+check('dropping the weight mid-session does not count as completing it',
+  dropped.targetReps === 8 && dropped.weight === 50, `${dropped.weight} × ${dropped.targetReps}`);
+
+check('the floor trajectory is reported', floor7.lastSummary.floors.join('→') === '6→7', floor7.lastSummary.floors.join('→'));
+check('every branch carries a rep target', [floor6, topped, cutShort, dropped,
+  prescribe({ exercise: sq, exerciseIndex: 0, history: {}, block: byId.M1, spec: rotationSpec(byId.M1, 0) }),
+  prescribe({ exercise: sq, exerciseIndex: 0, history: ladderHist([['2026-10-05', [[50, 8], [50, 8], [50, 8]]]]),
+    block: byId.M1, spec: rotationSpec(byId.M1, 12) }),
+].every((p) => Number.isFinite(p.targetReps)));
+
 // ── 5. Volume attribution ─────────────────────────────────────────────────
 console.log('\nVolume');
 const spring = sessions.filter((s) => s.date >= '2026-04-20');
