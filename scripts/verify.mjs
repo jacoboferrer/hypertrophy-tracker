@@ -65,6 +65,8 @@ check(`historic sets before ${PROGRAM_START} do not advance the plan`,
 check('RIR tightens 3 → 2 → 1.5 → 0.5 across rotations',
   [0, 3, 6, 9].map((i) => rotationSpec(BLOCKS[1], i).rir).join(',') === '3,2,1.5,0.5');
 check('deload prescribes RIR 5', rotationSpec(BLOCKS[1], 12).rir === 5);
+check('M3 is a full accumulation block, not a lighter intensification one',
+  !BLOCKS.find((b) => b.id === 'M3').repShift && !BLOCKS.find((b) => b.id === 'M3').setDelta);
 check(`total planned sessions = ${TOTAL_PLANNED_SESSIONS}`, TOTAL_PLANNED_SESSIONS === 100);
 
 // ── 3. Rotation order ─────────────────────────────────────────────────────

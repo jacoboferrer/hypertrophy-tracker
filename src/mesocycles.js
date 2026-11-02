@@ -32,10 +32,9 @@ export const BLOCKS = [
     extraAccessorySet: true,
   },
   {
-    id: 'M3', name: 'Intensification', kind: 'ramp', sessions: 13,
+    id: 'M3', name: 'Accumulation III', kind: 'ramp', sessions: 13,
     window: '16 Nov – 20 Dec',
-    note: 'Heavier and leaner: compound rep ranges drop by two, one fewer accessory set. The lowest-volume working block, deliberately placed in the busiest weeks of term — it is the cheapest to recover from alongside hard grappling.',
-    repShift: -2, setDelta: -1,
+    note: 'Volume runs on into the exam hold. This slot was an intensification block only to fit the busiest weeks of term, and this term is light. Standard volume rather than M2’s peak; the heavy work waits for M6, where it feeds the test.',
   },
   {
     id: 'H1', name: 'Hold — exams', kind: 'hold', sessions: 8,
@@ -44,12 +43,12 @@ export const BLOCKS = [
     setCap: 2, rir: 3, loadPct: 1,
   },
   {
-    id: 'M4', name: 'Accumulation III', kind: 'ramp', sessions: 13,
+    id: 'M4', name: 'Accumulation IV', kind: 'ramp', sessions: 13,
     window: '25 Jan – 28 Feb',
-    note: 'Volume again, on top of M3’s higher strength base. This is where the year’s size actually arrives.',
+    note: 'Volume again, picking up from the exam hold. This is where the year’s size actually arrives.',
   },
   {
-    id: 'M5', name: 'Accumulation IV', kind: 'ramp', sessions: 13,
+    id: 'M5', name: 'Accumulation V', kind: 'ramp', sessions: 13,
     window: '1 Mar – 4 Apr',
     note: 'The second spring volume block, and the last one before the year’s heaviest work.',
     extraAccessorySet: true,

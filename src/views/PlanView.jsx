@@ -24,7 +24,7 @@ function YearStrip({ meso }) {
         {BLOCKS.map((b, i) => {
           const current = i === meso.blockIndex;
           const done = i < meso.blockIndex;
-          const color = b.id === 'M3' ? 'var(--accent)' : KIND_COLOR[b.kind];
+          const color = KIND_COLOR[b.kind];
           return (
             <div key={b.id} style={{ flex: b.sessions, minWidth: 0 }}>
               <div style={{
@@ -141,7 +141,7 @@ export default function PlanView({ meso, history }) {
             <div key={b.id} style={{ opacity: i < meso.blockIndex ? 0.5 : 1 }}>
               <div className="row-between">
                 <div className="row" style={{ gap: 8 }}>
-                  <span className="mono" style={{ fontWeight: 700, color: b.id === 'M3' ? 'var(--accent)' : KIND_COLOR[b.kind] }}>{b.id}</span>
+                  <span className="mono" style={{ fontWeight: 700, color: KIND_COLOR[b.kind] }}>{b.id}</span>
                   <span style={{ fontWeight: 600, fontSize: 14.5 }}>{b.name}</span>
                   {i === meso.blockIndex && <Pill color="var(--accent)">Current</Pill>}
                 </div>
