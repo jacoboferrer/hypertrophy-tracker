@@ -10,7 +10,7 @@
 //
 
 import { metaFor, roundToIncrement } from './exercises.js';
-import { setBonus } from './mesocycles.js';
+import { setBonus, DELOAD_ROTATION } from './mesocycles.js';
 
 // A gap longer than this is treated as detrained, which is what re-entry and
 // hold blocks discount against.
@@ -72,6 +72,7 @@ export function sessionHistory(history, name, base) {
         // same weight. A session cut short does not qualify, nor does one that
         // dropped the weight part-way.
         complete: judged.length >= base && judged.every((s) => s.weight >= load),
+        deload: all.some((s) => s.rotation === DELOAD_ROTATION),
       };
     });
 }
@@ -109,7 +110,10 @@ export function prescribe({ exercise, exerciseIndex, history, block, spec }) {
   }
 
   // ── Load ──────────────────────────────────────────────────────────────
-  const past = sessionHistory(history, exercise.name, exercise.sets);
+  // A deload is not a performance. Measured from it, the next block would
+  // restart one increment below 60% of its load, a hold block would hold 60%,
+  // and a second deload set would take 60% of 60%.
+  const past = sessionHistory(history, exercise.name, exercise.sets).filter((s) => !s.deload);
   const last = past[0];
   const firstExposure = spec.rotation === 0 && !spec.isDeload;
 

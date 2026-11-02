@@ -74,6 +74,8 @@ export const TOTAL_PLANNED_SESSIONS = BLOCKS.reduce((s, b) => s + b.sessions, 0)
 // week — 95 of 268 sets were logged at RIR 0.
 export const RIR_BY_ROTATION = [3, 2, 1.5, 0.5];
 const DELOAD_RIR = 5;
+// Stamped on every set logged in a deload, so progression can skip them.
+export const DELOAD_ROTATION = 4;
 
 /**
  * Where a session sits inside its block.
@@ -92,7 +94,7 @@ export function rotationSpec(block, sessionInBlock) {
   }
   const isDeload = sessionInBlock >= block.sessions - 1;
   if (isDeload) {
-    return { rotation: 4, label: 'Deload', rir: DELOAD_RIR, loadPct: 0.6, isDeload: true, halveSets: true };
+    return { rotation: DELOAD_ROTATION, label: 'Deload', rir: DELOAD_RIR, loadPct: 0.6, isDeload: true, halveSets: true };
   }
   const rotation = Math.floor(sessionInBlock / 3);
   return {

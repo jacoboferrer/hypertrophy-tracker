@@ -202,6 +202,22 @@ check('every branch carries a rep target', [floor6, topped, cutShort, dropped,
     block: byId.M1, spec: rotationSpec(byId.M1, 12) }),
 ].every((p) => Number.isFinite(p.targetReps)));
 
+// ── 4d. The deload is invisible to progression ──────────────────────────
+console.log('\nAfter the deload');
+const deloadHist = (rotation) => ({ 'Barbell Back Squat': [
+  ...[1, 2, 3].map((set) => ({ date: '2026-10-05', exercise: 'Barbell Back Squat', set, reps: 7, weight: 60, rotation: 3 })),
+  ...[1, 2].map((set) => ({ date: '2026-10-08', exercise: 'Barbell Back Squat', set, reps: 6, weight: 35, rotation })),
+] });
+const m2Open = prescribe({ exercise: sq, exerciseIndex: 0, history: deloadHist(4), block: byId.M2, spec: rotationSpec(byId.M2, 0) });
+check('next block restarts one increment below the pre-deload load, not the deload',
+  m2Open.weight === 57.5 && m2Open.lastSummary.date === '2026-10-05', `${m2Open.weight} kg from ${m2Open.lastSummary.date}`);
+const h1Open = prescribe({ exercise: sq, exerciseIndex: 0, history: deloadHist(4), block: byId.H1, spec: rotationSpec(byId.H1, 0) });
+check('a hold block after a deload holds the working load', h1Open.weight === 60, `${h1Open.weight} kg`);
+const midDeload = prescribe({ exercise: sq, exerciseIndex: 0, history: deloadHist(4), block: byId.M1, spec: rotationSpec(byId.M1, 12) });
+check('logging deload sets does not compound the 60%', midDeload.weight === 35, `${midDeload.weight} kg`);
+const notDeload = prescribe({ exercise: sq, exerciseIndex: 0, history: deloadHist(0), block: byId.M2, spec: rotationSpec(byId.M2, 4) });
+check('an ordinary session is still read as the last one', notDeload.lastSummary.date === '2026-10-08');
+
 // ── 5. Volume attribution ─────────────────────────────────────────────────
 console.log('\nVolume');
 const spring = sessions.filter((s) => s.date >= '2026-04-20');
